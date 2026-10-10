@@ -485,3 +485,10 @@ const fmtN=n=>n.toLocaleString('en-US');
 
 // 红线匹配前统一写法：您→你、咱们→我们、去空白、全角数字→半角（只改匹配方式，不加业务词）
 function normRL(t){return String(t).replace(/您/g,'你').replace(/咱们/g,'我们').replace(/\s+/g,'').replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248))}
+// ===== r12 =====
+// 最好成绩：不计入掌握（nc：红线 / 照抄）的遍次不算
+function bestOf(hs){const v=(hs||[]).filter(h=>!h.nc&&!h.red&&h.score!=null).map(h=>h.score);return v.length?Math.max(...v):'还没有成绩'}
+// 红线引用原话：在 normRL 后的文本上匹配，再映射回员工原文（保留「您」等原字）
+function rlQuote(t,re){t=String(t);let n='',map=[];for(let i=0;i<t.length;i++){const c=t[i];if(/\s/.test(c))continue;if(c=='咱'&&t[i+1]=='们'){n+='我们';map.push(i,i+1);i++;continue}
+ n+=c=='您'?'你':/[０-９]/.test(c)?String.fromCharCode(c.charCodeAt(0)-65248):c;map.push(i)}
+ const m=n.match(re);if(!m)return null;const a=map[m.index],b=map[m.index+m[0].length-1];return t.slice(a,b+1)}
