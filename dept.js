@@ -250,7 +250,7 @@ const _ar9=R.arena;R.arena=()=>{let h=_ar9();const f=firstOf();if(!f||f.id=='S-0
 // —— 复盘记录收录所有场景
 const _rev9=R.review;R.review=()=>{const L=libAll().filter(s=>s.id!='S-087'&&dH(s.id).length);const card=`<div class="card" style="margin-top:16px"><div class="ch"><h2>其他场景的复盘</h2><span class="muted s13">${L.length} 个场景有练习记录</span></div>${L.length?`<table><tr><th>场景</th><th>部门</th><th>已练</th><th>最近成绩</th><th></th></tr>${L.map(s=>{const hs=dH(s.id),l=hs.slice(-1)[0];return`<tr><td><span class="mono muted">${s.id}</span> ${s.title}</td><td>${DMAP[s.dept]}</td><td>${legacyBase(s.id)+hs.length} 次</td><td>${hs.slice(-3).map(x=>x.score).join(' · ')}</td><td><a class="btn sm" href="${l.turns?'#/dresult?id='+s.id:scRoute(s)}">看复盘</a></td></tr>`}).join('')}</table>`:'<div class="muted">练完其他场景后，会在这里出现。</div>'}</div>`;return _rev9().replace(/<\/div>\s*$/,card+'</div>')};
 // —— 上岗认证：占位符改中性文案；去练按场景跳转；路径按部门
-const _cert9=R.cert;R.cert=()=>{let h=_cert9().replace(/\{由带教确认\}/g,'练完后，结果会经过确认再生效').replace(/\{公司名\}/g,'由公司培训系统签发');
+const _cert9=R.cert;R.cert=()=>{let h=_cert9();
  h=h.replace(/<tr><td>(S-\d+)([^<]*)<\/td>([\s\S]*?)<a class="btn sm p" href="#\/[a-z]+">去练<\/a>/g,(m0,id,t,mid)=>{const s=libAll().find(x=>x.id==id);return`<tr><td>${id}${t}</td>${mid}${s?`<a class="btn sm p" href="${scRoute(s)}">去练</a>`:'<span class="btn sm" title="场景还没上线" style="opacity:.6;cursor:default">即将上线</span>'}`});
  const me=meInfo();const P=LS.get('certPaths',[]);const hidden=P.filter(p=>p.dept&&p.dept!=me.dept).map(p=>p.name);hidden.forEach(n=>{h=h.replace(new RegExp('<div class="card"[^>]*><div class="row"><h3>'+n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'</h3>[\\s\\S]*?后台新建 · [^<]*</div></div>'),'')});
  P.filter(p=>!p.dept||p.dept==me.dept).forEach(p=>{const ok=p.sc.filter(id=>{const hs=id=='S-087'?H():dH(id);let n=0;for(const x of hs.slice().reverse()){if(x.score>=CONFIG.masteryLine)n++;else break}return n>=CONFIG.masteryReps}).length;h=h.replace(`${p.name} · 已掌握 0/${p.sc.length} 个场景 · 0%`,`${p.name} · 已掌握 ${ok}/${p.sc.length} 个场景 · ${Math.round(ok/p.sc.length*100)}%`)});return h};
@@ -288,3 +288,25 @@ DEMO_NOTES.session.push('评分为规则演示，正式评分待环境（AI）�
 DEMO_NOTES.retell.push('评分为规则演示，正式评分待环境（AI）。');DEMO_NOTES.cert.push('「练完后，结果会经过确认再生效」原为占位 {由带教确认}，「由公司培训系统签发」原为占位 {公司名}，待决策后替换。','后台新建的认证路径只对目标部门的员工显示。','S-142 / S-150 / S-133 还没上线，按钮显示「即将上线」。');
 DEMO_NOTES.overview.push('本周练习次数、人均遍数、达标率都由 DDATA 计算（与后台一致）。');DEMO_NOTES.admin.push('演示角色按部门限定；「培训管理员」是跨部门角色，只有它能进后台。','「我的团队」：带教 / 组长类看本部门，部门负责人看全部，业务线负责人看所辖部门。','员工调部门后，组织架构人数跟着变，全公司总数不变。','导出 CSV 会写审计日志，文件名带当天日期。');
 DEMO_NOTES.team=['范围：带教 / 组长类 → 本部门；部门负责人 → 全部部门；业务线负责人 → 产品、研发、运维、销售、售后。','只读视图，数据为演示数据。'];
+// ===================== r10：我的团队范围 + 练习场带教提示 =====================
+const BIZLINE=()=>LS.get('bizline',BIZLINE_DEFAULT);
+// 成员练习数据：按姓名生成的固定演示数字（同一人每次一样）
+const hsh=s=>[...s].reduce((a,c)=>(a*31+c.charCodeAt(0))%9973,7);
+const memberRow=(n,d)=>{const h=hsh(n),reps=4+h%23,last=48+h%47,fails=last<CONFIG.masteryLine?1+h%4:0;return{n,d,reps,last,fails,pass:last>=CONFIG.masteryLine}};
+function teamMembers(m){if(m.scope=='mentees')return(DEMO_MENTEES[m.dept]||[]).map(n=>memberRow(n,m.dept));if(m.scope=='group')return(DEMO_GROUPS[m.dept]||{m:[]}).m.map(n=>memberRow(n,m.dept));return null}
+R.team=()=>{const m=meInfo();if(!m.mgr)return R.forbidden();const T={mentees:'分给我的学员',group:'本组 · '+((DEMO_GROUPS[m.dept]||{}).g||''),dept:'本部门全部 · '+DMAP[m.dept],line:'所辖业务线'}[m.scope];const mem=teamMembers(m);
+ const ds=m.scope=='line'?BIZLINE():[m.dept];
+ const memTable=mem?`<div class="card"><div class="ch"><h2>${T}</h2><span class="muted s13">${mem.length} 人</span></div>${mem.length?`<table><tr><th>姓名</th><th>已练</th><th>最近成绩</th><th>连续未达标</th><th>状态</th></tr>${mem.map(r=>`<tr><td>${r.n}</td><td>${r.reps} 次</td><td>${r.last}</td><td>${r.fails?r.fails+' 遍':'—'}</td><td><span class="tag ${r.pass?'g':r.fails>=CONFIG.mentorAfterFails?'r':'y'}">${r.pass?'达标':r.fails>=CONFIG.mentorAfterFails?'需要带教介入':'练习中'}</span></td></tr>`).join('')}</table>`:'<div class="muted">还没有分给你的学员。</div>'}</div>`:'';
+ const deptTable=mem?'':`<div class="card"><div class="ch"><h2>${T}</h2>${m.scope=='line'?'<span class="tag">示例</span><span class="muted s13">业务线包含的部门可在后台配置</span>':''}</div><table><tr><th>部门</th><th>人数</th><th>完成率</th><th>掌握率</th><th>薄弱维度</th></tr>${ds.map(d=>`<tr><td>${DMAP[d]}</td><td>${DDATA[d][0]}</td><td>${DDATA[d][1]}%</td><td>${DDATA[d][2]}%</td><td><span class="tag o">${DDATA[d][3]}</span></td></tr>`).join('')}</table></div>`;
+ const newIds=LS.get('scNew',[]).map(x=>x.id);
+ return`<div class="page"><div class="hd"><div><div class="eyebrow">${m.role} 可见</div><h1>我的团队</h1><div class="sub">范围：${T}${m.scope=='line'?'（'+ds.map(d=>DMAP[d]).join('、')+'）':''} · 只读</div></div></div>${memTable}${deptTable}
+ <div class="card" style="margin-top:16px"><div class="ch"><h2>范围内场景</h2></div>${libAll().filter(s=>ds.includes(s.dept)).map(s=>`<div class="row" style="padding:8px 0;border-bottom:1px solid var(--line)"><span class="mono muted">${s.id}</span>${s.title}<span class="ml muted s13">${mem?'成员':'团队'}已练 ${newIds.includes(s.id)?0:mem?mem.reduce((a,r)=>a+(hsh(r.n+s.id)%4),0):(DDATA[s.dept][0]*3+s.id.charCodeAt(4))%60} 遍</span></div>`).join('')}</div></div>`};
+// 后台：业务线范围配置
+const _cfg10=admCfg;admCfg=function(){const B=BIZLINE();return _cfg10()+`<div class="card" style="margin-top:16px" id="blForm"><div class="ch"><h2>业务线范围</h2><span class="tag">示例</span><span class="muted s13">「业务线负责人」在「我的团队」里能看到的部门</span></div><div class="atoms" style="grid-template-columns:repeat(4,1fr)">${DEPT_CHIPS.slice(1).filter(d=>d!='业务线').map(d=>`<label><input type="checkbox" value="${d}" ${B.includes(d)?'checked':''}> ${DMAP[d]}</label>`).join('')}</div><div class="row" style="margin-top:8px"><button class="btn" onclick="LS.del('bizline');audit('BIZLINE','恢复默认','${B.join(',')}','${BIZLINE_DEFAULT.join(',')}');go()">恢复示例</button><button class="btn p ml" onclick="blSave()">保存</button></div></div>`};
+window.blSave=()=>{const v=[...document.querySelectorAll('#blForm input:checked')].map(x=>x.value);if(!v.length){toast('至少选 1 个部门');return}const b=BIZLINE().join(',');LS.set('bizline',v);audit('BIZLINE','修改业务线范围',b,v.join(','));toast('已保存业务线范围');go()};
+// 练习场带教提示：按当前主推场景计数
+const _ar10=R.arena;R.arena=()=>{const h=_ar10();const f=firstOf();if(!f||f.id=='S-087')return h;const n=consecFailD(dH(f.id));const bar=n>=CONFIG.mentorAfterFails?`<div style="margin-top:12px"><div class="sys" style="background:var(--yl);color:#7a5a1e">🧑‍🏫 ${COPY_MENTOR}<span class="muted s13">（${f.id} 最近 ${n} 遍未达标）</span></div></div>`:'';
+ return h.replace(/<div style="margin-top:12px"><div class="sys"[^>]*>🧑‍🏫[\s\S]*?<\/span><\/div><\/div>/,bar)};
+DEMO_NOTES.team=['范围：带教 → 分给自己的学员；组长 / 主管 / 采购经理 → 本组；部门负责人 → 本部门全部；业务线负责人 → 后台配置的业务线部门。','业务线范围目前是示例（产品、研发、运维、销售、售后），待用户决策。','学员、小组成员和成绩都是演示数据。'];
+DEMO_NOTES.admin.push('业务线范围（BIZLINE）为示例，待用户决策。');DEMO_NOTES.arena.push('带教提示按当前主推场景的连续未达标次数计算（阈值 X）。');
+go();
