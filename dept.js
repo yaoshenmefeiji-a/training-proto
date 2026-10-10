@@ -432,6 +432,6 @@ const _ps13=playSteps;playSteps=function(sc){let h=_ps13(sc);if(sc.mode!='沙盒
 // D 新建 / 编辑场景：归属部门必填
 window.scSave=scSave=(_sv=>st=>{const F=$('#scForm');const d=F&&F.querySelector('[name=dept]');if(d&&!d.value){$('#fmsg').innerHTML='<span class="dn">请选择归属部门，再保存。</span>';d.focus();return}_sv(st)})(scSave);
 const _go13=go;go=function(){_go13();if(curRoute()=='play'&&qid()){const sc=getSc(qid());if(sc&&sc.mode=='AI 陪练')lockL3(sc.id,dS(sc.id).hint>=3)}};
-DEMO_NOTES.play.push('部门红线为示例（示例 · 待业务确认），按组合关键词识别；更宽泛的说法待环境。','第 3 级提示：每个场景提交过 2 遍（含重置 / 红线，至少提交过 1 个回合）后才能看。','文本复述按要点同义词判断，语义评分待环境；照抄最高 70 分。');
+DEMO_NOTES.play.push('部门红线为示例（示例 · 待业务确认），按组合关键词识别，不看词序；更宽泛的说法待环境。','合规路径豁免：同一句讲明申请 / 审批通过后 / 走审批 / 按流程 / 工单，且没有跳过、回头补等说法时不判红线。这是原型的权宜做法，真正判断待环境（接入 AI 后再定）。','第 3 级提示：每个场景提交过 2 遍（含重置 / 红线，至少提交过 1 个回合）后才能看。','文本复述按要点同义词判断，语义评分待环境；照抄最高 70 分。');
 DEMO_NOTES.session.push('第 3 级提示：提交过 2 遍后才能看（与掌握计数分开）。');
 go();
