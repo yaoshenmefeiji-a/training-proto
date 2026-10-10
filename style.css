@@ -132,3 +132,6 @@ td select{border:1px solid var(--line);border-radius:6px;padding:3px 6px;font:in
 /* r5：宽屏对话区居中成列，避免中间大片空白 */
 .chat{padding-left:max(24px,calc((100% - 1040px)/2))!important;padding-right:max(24px,calc((100% - 1040px)/2))!important}
 .chat .msg,.chat .coach,.chat .sys{max-width:88%}
+/* r6：对话从上往下排，不留空隙；中档以上「重练这一回合」用次要样式 */
+.chat{justify-content:flex-start!important}.chat>*{flex:0 0 auto!important;margin-top:0!important;margin-bottom:0!important}
+.btn.ghost{background:transparent;border-color:var(--line);color:var(--m);box-shadow:none}

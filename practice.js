@@ -73,7 +73,7 @@ function renderSess(){const s=S(),v=VARS[s.vi],c=calc(s.turns,s.hint);let h='';
   h+=`<div class="msg"><div class="av" style="background:#9a8f80">客</div><div><div class="who">客户 · ${v.who} · 第 ${i+1} 回合</div><div class="bub">${cust}</div></div></div>`;
   if(!tr)break;const f=fbOf(tr),sc=tAvg(f);
   h+=`<div class="msg me"><div class="av" style="background:#4f7462">我</div><div><div class="who" style="text-align:right">我 · 第 ${i+1} 回合${s.retried[i]?' · 已重练':''}</div><div class="bub">${tr.t}</div></div></div>`;
-  h+=`<div class="coach">${f.red?`<div class="red">⛔ ${f.red}</div>`:''}<div class="t">✦ AI 教练 · 第 ${i+1} 回合 <span class="tag ${sc>=80?'g':sc>=65?'y':'r'}">${sc} 分</span>${tr.k!='g'?`<button class="btn sm" style="margin-left:auto" onclick="retryTurn(${i})">↺ 重练这一回合</button>`:''}</div><ul>${f.good&&!f.red?`<li><span class="up">✓ 做得好：</span>${f.good}</li>`:''}<li><span style="color:var(--o)">△ ${f.red?'正确做法':'可以更好'}：</span>${f.fix}</li><li class="muted s13">引用知识 <a href="#/kb" class="tag g">${f.k}</a> · 本回合维度 ${DIMS.map(([k,n])=>n.slice(0,2)+' '+f.d[k]).join(' / ')}</li></ul></div>`}
+  h+=`<div class="coach">${f.red?`<div class="red">⛔ ${f.red}</div>`:''}<div class="t">✦ AI 教练 · 第 ${i+1} 回合 <span class="tag ${sc>=CONFIG.masteryLine?'g':sc>=CONFIG.midLine?'y':'r'}">${sc} 分</span>${tr.k!='g'?`<button class="btn sm ${sc>=CONFIG.midLine&&!f.red?'ghost':''}" style="margin-left:auto" onclick="retryTurn(${i})">↺ 重练这一回合</button>`:''}</div><ul>${f.good&&!f.red?`<li><span class="up">✓ 做得好：</span>${f.good}</li>`:''}<li><span style="color:var(--o)">△ ${f.red?'正确做法':'可以更好'}：</span>${f.fix}</li><li class="muted s13">引用知识 <a href="#/kb" class="tag g">${f.k}</a> · 本回合维度 ${DIMS.map(([k,n])=>n.slice(0,2)+' '+f.d[k]).join(' / ')}</li></ul></div>`}
  if(s.turns.length>=6)h+=`<div class="sys" style="background:var(--gl);color:var(--g)">6 个回合已完成，输入已关闭。<br><button class="btn p" style="margin-top:6px" onclick="submitAtt()">查看本遍结果 →</button></div>`;
  $('#chat').innerHTML=h;$('#chat').scrollTop=99999;
  $('#sc').textContent=c.score;$('#rd').textContent=Math.min(s.turns.length+1,6)+' / 6';$('#rp').innerHTML=rightPanel(s,c);renderInput(s)}
@@ -215,7 +215,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
 $('#q').addEventListener('keydown',e=>{if(e.key=='Enter'){sf={pos:'全部',lv:'全部',sort:'推荐'};location.hash='#/scenarios?q='+encodeURIComponent(e.target.value.trim())}});
 let role=LS.get('role','emp');
 $('#role').addEventListener('click',e=>{const v=e.target.dataset.v;if(!v)return;role=v;LS.set('role',v);go();toast(v=='adm'?'已切换到管理视角':'已切换到员工视角')});
-const _ov=R.overview;R.overview=()=>{let h=_ov();if(role=='adm')h=h.replace('员工视角 · 陈佳雯','管理视角 · 客服组').replace('早上好，佳雯。','早上好，客服组。').replace(/今日练习队列 5 项.*?熟练<\/div>/,'本周练习 2,417 次 · 待修正 7 条 · 3 个场景引用了已下线的知识</div>');return h};
+const _ov=R.overview;R.overview=()=>{let h=_ov();if(role=='adm')h=h.replace('员工视角 · 陈佳雯','管理视角 · 客服组').replace('早上好，佳雯。','早上好，许敏。').replace(/今日练习队列 5 项.*?熟练<\/div>/,'本周练习 2,417 次 · 待修正 '+fbN()+' 条 · 3 个场景引用了已下线的知识</div>');return h};
 Object.assign(NAMES,{retell:'练习场 › 文本复述 › <b>S-076 新客户开户</b>',cert:'个人 › <b>上岗认证</b>',session:'练习场 › AI 陪练 › <b>S-087 价格异议</b>',review:'练习场 › <b>结果页 · S-087</b>'});
 const NAVMAP={session:'session',review:'review',retell:'retell',cert:'cert'};
 go=function(){const raw=location.hash.slice(2)||'overview';const [r,qs]=raw.split('?');const k=R[r]?r:'overview';const q=qs&&qs.startsWith('q=')?decodeURIComponent(qs.slice(2)):'';
