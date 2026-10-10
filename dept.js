@@ -78,8 +78,8 @@ function playSteps(sc){const hs=dH(sc.id),last=hs.slice(-1)[0],sandbox=sc.mode==
 window.stepSubmit=()=>{const sc=getSc(qid());let pts;if(sc.mode=='沙盒实操'){const v=[...document.querySelectorAll('.stp')].map(x=>x.value.trim());pts=sc.steps.map((s,i)=>({s,ok:v[i].length>=6}))}else{const t=$('#rtx').value;pts=sc.steps.map(s=>({s,ok:bigr(s).some(b=>t.includes(b))}))}
  const score=Math.round(100*pts.filter(p=>p.ok).length/pts.length);const hs=dH(sc.id);hs.push({no:legacyBase(sc.id)+hs.length+1,score,pts,var:'V-'+sc.id.slice(2)+'-a',hint:0});LS.set('dh_'+sc.id,hs);go();toast('已按要点评分：'+score+' 分')};
 // ---- 部门对话结果页 ----
-R.dresult=()=>{const id=qid(),sc=getSc(id),hs=dH(id),r=hs.slice(-1)[0];if(!r)return'<div class="page">还没有成绩。</div>';const p=hs[hs.length-2];const diff=p?r.score-p.score:null;
- return`<div class="page"><div class="hd"><div><div class="eyebrow">结果页 · ${sc.id} ${sc.title}</div><h1>第 ${r.no} 次练习 · ${r.score} 分</h1><div class="sub">${p?(diff>0?`比上一遍 +${diff}（上一遍 ${p.score}）`:diff<0?`比上一遍 ${diff}（上一遍 ${p.score}）`:'和上一遍一样'):''}　${r.score>=CONFIG.masteryLine?'这一遍达标了。':'还差 '+(CONFIG.masteryLine-r.score)+' 分达标。'}</div><div class="meta"><span>attempt <b>${r.att}</b></span><span>变体 <b>${r.var}</b></span>${r.red?'<span class="tag r">触发红线</span>':''}</div></div><div class="act"><a class="btn" href="#/arena">结束</a><a class="btn p big" href="#/play?id=${id}">↺ 再练一遍</a></div></div>
+R.dresult=()=>{const id=qid(),sc=getSc(id),hs=dH(id),r=hs.slice(-1)[0];if(!r)return'<div class="page">还没有成绩。</div>';const p=r.red||r.hint>=3?null:prevCounted(hs);const diff=p?r.score-p.score:null;
+ return`<div class="page"><div class="hd"><div><div class="eyebrow">结果页 · ${sc.id} ${sc.title}</div><h1>第 ${r.no} 次练习 · ${r.score} 分</h1><div class="sub">${r.red?'这一遍触发了红线，不计入掌握，也不和上一遍比较。':r.hint>=3?'这一遍看过完整提示，不计入掌握，也不和上一遍比较。':p?(diff>0?`比上一遍 +${diff}（上一遍计入的第 ${p.no} 次 ${p.score}）`:diff<0?`比上一遍 ${diff}（上一遍计入的第 ${p.no} 次 ${p.score}）`:`和上一遍一样（上一遍计入的第 ${p.no} 次 ${p.score}）`):''}　${r.red?'':r.score>=CONFIG.masteryLine?'这一遍达标了。':'还差 '+(CONFIG.masteryLine-r.score)+' 分达标。'}</div><div class="meta"><span>attempt <b>${r.att}</b></span><span>变体 <b>${r.var}</b></span>${r.red?'<span class="tag r">触发红线</span>':''}</div></div><div class="act"><a class="btn" href="#/arena">结束</a><a class="btn ${retryPrimary(r)?'p ':''}big" id="retryBtn" href="#/play?id=${id}">↺ 再练一遍</a></div></div>
  <div class="grid g21"><div class="card"><div class="ch"><h2>进步曲线</h2></div>${curve(hs)}</div><div class="card"><div class="ch"><h2>维度分</h2></div>${DIMS.map(([k])=>`<div class="dim"><div class="row"><span>${GDIMS[k]}</span><b class="r">${r.dims[k]}</b></div>${bar(r.dims[k])}</div>`).join('')}</div></div>
  <div class="card replay" style="margin-top:16px"><div class="ch"><h2>全文回放 · 逐回合点评</h2></div>${r.turns.map((tr,i)=>{const f=gCompose(tr.f);return`<div class="t"><div><b>第 ${i+1} 回合</b><div><span class="tag ${tAvg(f)>=CONFIG.masteryLine?'g':'o'}">${tAvg(f)}</span></div></div><div><div class="muted">${i==0?sc.opener:FOLLOW[i]}</div><div>我：${tr.t}</div></div><div class="s13">${f.red?`<div class="dn">⛔ ${f.red}</div>`:''}${f.good&&!f.red?`<div><span class="up">做得好：</span>${f.good}</div>`:''}<div><span style="color:var(--o)">${f.red?'正确做法':'可以更好'}：</span>${f.fix}</div></div></div>`}).join('')}</div></div>`};
 // ---- 场景库：部门筛选 ----
@@ -108,12 +108,12 @@ R.admin=()=>{const tabs=[['sc','场景与知识'],['org','员工与部门'],['da
  return`<div class="page"><div class="hd"><div><div class="eyebrow">管理视角</div><h1>培训管理后台</h1><div class="sub">管理场景与知识、员工与部门、练习数据、带教与认证规则。</div></div><div class="act"><a class="btn" href="#/overview" onclick="LS.set('role','emp')">返回员工端</a></div></div>
  <div class="tabs" style="max-width:760px">${tabs.map(t=>`<span class="${admTab==t[0]?'on':''}" onclick="admGo('${t[0]}')">${t[1]}</span>`).join('')}</div>${({sc:admSc,org:admOrg,data:admData,cfg:admCfg,log:admLog})[admTab]()}</div>`};
 let editId=null;window.admEdit=id=>{editId=id;go()};
-function admSc(){const L=allDeptSc(true),e=editId?(editId=='new'?{id:'S-'+(280+LS.get('scNew',[]).length),dept:'销售',title:'',desc:'',role:'',opener:'',theirGoal:'',ourGoal:'',mode:'AI 陪练',krefs:[],steps:[],status:'草稿',ver:'v0'}:getSc(editId)):null;
+function admSc(){const L=allDeptSc(true),e=editId?(editId=='new'?{id:'S-'+(280+LS.get('scNew',[]).length),dept:'',title:'',desc:'',role:'',opener:'',theirGoal:'',ourGoal:'',mode:'AI 陪练',krefs:[],steps:[],status:'草稿',ver:'v0'}:getSc(editId)):null;
  const atoms=[...new Set(DEPT_SCENARIOS.flatMap(s=>s.krefs))].concat(['K-5.3.1','K-1.2.3','K-1.2.5','K-2.2.1','K-4.2.3']);
- return`<div class="grid ${e?'g21':''}" style="${e?'':'grid-template-columns:1fr'}"><div class="card"><div class="ch"><h2>场景管理</h2><span class="muted s13">${L.length} 个部门场景（另有 ${SC.length} 个早期场景）</span><button class="btn p r" onclick="admEdit('new')">＋ 新建场景</button></div><table><tr><th>编号</th><th>部门</th><th>标题</th><th>形式</th><th>知识原子</th><th>版本</th><th>状态</th><th></th></tr>${L.map(s=>`<tr><td class="mono">${s.id}</td><td>${s.dept}</td><td>${s.title}</td><td><span class="tag">${s.mode}</span></td><td class="s13">${(s.krefs||[]).length} 条</td><td>${s.ver}</td><td><span class="tag ${s.status=='草稿'?'y':'g'}">${s.status}</span></td><td><button class="btn sm" onclick="admEdit('${s.id}')">编辑</button></td></tr>`).join('')}</table></div>
+ return`<div class="grid ${e?'g21':''}" style="${e?'':'grid-template-columns:1fr'}"><div class="card"><div class="ch"><h2>场景管理</h2><span class="muted s13">${L.length} 个部门场景（另有 ${SC.length} 个早期场景）</span><button class="btn p r" onclick="admEdit('new')">＋ 新建场景</button></div><table><tr><th>编号</th><th>部门</th><th>标题</th><th>形式</th><th>知识原子</th><th>版本</th><th>状态</th><th></th></tr>${L.map(s=>`<tr><td class="mono">${s.id}</td><td class="nw" title="${DMAP[s.dept]||s.dept}">${s.dept}</td><td>${s.title}</td><td><span class="tag">${s.mode}</span></td><td class="s13">${(s.krefs||[]).length} 条</td><td>${s.ver}</td><td><span class="tag ${s.status=='草稿'?'y':'g'}">${s.status}</span></td><td><button class="btn sm" onclick="admEdit('${s.id}')">编辑</button></td></tr>`).join('')}</table></div>
  ${e?`<div class="card" id="scForm"><div class="ch"><h2>${editId=='new'?'新建场景':'编辑 '+e.id}</h2><span class="r tag">${e.ver} · ${e.status}</span></div>
  ${[['title','标题',e.title],['role','AI 扮演',e.role],['opener','开场白',e.opener],['theirGoal','对方目的',e.theirGoal],['ourGoal','我方目的',e.ourGoal],['desc','场景描述',e.desc]].map(f=>`<label class="fl">${f[1]}<textarea name="${f[0]}" rows="${f[0]=='title'?1:2}">${f[2]||''}</textarea></label>`).join('')}
- <label class="fl">归属部门<span class="muted s13" style="display:block;font-weight:400">负责维护这个场景的部门，只能选一个</span><select name="dept">${DEPT_CHIPS.slice(1).map(d=>`<option ${d==e.dept?'selected':''}>${d}</option>`).join('')}</select></label><label class="fl">回合数（AI 陪练）<input type="number" name="turns" min="2" max="8" value="${e.turns||4}"></label><label class="fl">步骤 / 要点（沙盒、文本复述必填，每行一条）<textarea name="steps" rows="3">${(e.steps||[]).join('\n')}</textarea></label><label class="fl">形式<select name="mode">${['AI 陪练','沙盒实操','文本复述','话术模拟'].map(m=>`<option ${m==e.mode?'selected':''}>${m}</option>`).join('')}</select></label>
+ <label class="fl">归属部门<span class="muted s13" style="display:block;font-weight:400">负责维护这个场景的部门，只能选一个</span><select name="dept" required><option value="" ${e.dept?'':'selected'}>请选择归属部门（必填）</option>${DEPT_CHIPS.slice(1).map(d=>`<option value="${d}" ${d==e.dept?'selected':''}>${DMAP[d]}</option>`).join('')}</select></label><label class="fl">回合数（AI 陪练）<input type="number" name="turns" min="2" max="8" value="${e.turns||4}"></label><label class="fl">步骤 / 要点（沙盒、文本复述必填，每行一条）<textarea name="steps" rows="3">${(e.steps||[]).join('\n')}</textarea></label><label class="fl">形式<select name="mode">${['AI 陪练','沙盒实操','文本复述','话术模拟'].map(m=>`<option ${m==e.mode?'selected':''}>${m}</option>`).join('')}</select></label>
  <div class="fl">关联知识原子（至少 1 条才能发布）<div class="atoms">${atoms.map(a=>`<label class="s13"><input type="checkbox" name="k" value="${a}" ${(e.krefs||[]).includes(a)?'checked':''}> ${a}</label>`).join('')}</div></div>
  <div id="fmsg" class="s13" style="margin:6px 0"></div><div class="row"><button class="btn" onclick="admEdit(null)">取消</button><button class="btn r" onclick="scSave('草稿')">保存草稿</button><button class="btn p" onclick="scSave('已发布')">发布</button></div></div>`:''}</div>`}
 window.scSave=st=>{const F=$('#scForm'),g=n=>F.querySelector(`[name=${n}]`).value.trim();const k=[...F.querySelectorAll('[name=k]:checked')].map(x=>x.value);
@@ -341,8 +341,8 @@ go();
 // ===================== r12：PM 决策修复 =====================
 // 1 红线：触发即本遍进入低档（< midLine），且不计入掌握；红线回合本身也落在低档
 const RL_CAP=()=>CONFIG.midLine-25; // 默认 40，明显低于任何合规回答
-const _gEval12=gEval;gEval=function(sc,i,t){const r=_gEval12(sc,i,t);if(r.red){const q=rlQuote(t,redlineRe(sc.id,sc.dept));if(q)r.red=q;Object.keys(r.d).forEach(k=>r.d[k]=Math.min(r.d[k],RL_CAP()))}return r};
-const _evalRaw12=evalRaw;evalRaw=function(i,t){const r=_evalRaw12(i,t);if(r.red){const q=rlQuote(t,redlineRe('S-087'));if(q)r.red=q;Object.keys(r.d).forEach(k=>r.d[k]=Math.min(r.d[k],RL_CAP()))}return r};
+const _gEval12=gEval;gEval=function(sc,i,t){const r=_gEval12(sc,i,t);if(r.red){const q=rlQuote(t,redlineRe(sc.id,sc.dept));if(q)r.red=q;r.d.pol=Math.min(r.d.pol,RL_CAP())}return r};
+const _evalRaw12=evalRaw;evalRaw=function(i,t){const r=_evalRaw12(i,t);if(r.red){const q=rlQuote(t,redlineRe('S-087'));if(q)r.red=q;r.d.pol=Math.min(r.d.pol,RL_CAP())}return r};
 const _gCalc12=gCalc;gCalc=function(turns,hint){const c=_gCalc12(turns,hint);if(c.red&&c.score!=null)c.score=Math.min(c.score,RL_CAP());return c};
 const _calc12=calc;calc=function(turns,hint){const c=_calc12(turns,hint);if(c.red)c.score=Math.min(c.score,RL_CAP());return c};
 // 2 复述重合度：原文与作答都去掉标点 / 分隔符再比（原来步骤用「|」拼接、界面显示用「 · 」，跨分隔符的 6 字片段全部算不重合，整段照抄只有约 51%）
@@ -353,7 +353,7 @@ const newIds12=()=>LS.get('scNew',[]).map(x=>x.id);
 const _assigned12=assigned;assigned=d=>{const A=LS.get('assign',{});if(A[d])return A[d].filter(id=>{const s=libAll().find(x=>x.id==id);return s});return libAll().filter(s=>s.dept==d&&!newIds12().includes(s.id)).map(s=>s.id)};
 const _admSc12=admSc;admSc=function(){let h=_admSc12();if(!editId)return h;const isNew=editId=='new'||newIds12().includes(editId);if(!isNew)return h;
  const cur=editId=='new'?{status:'草稿',depts:[]}:LS.get('scNew',[]).find(x=>x.id==editId)||{};const D=cur.depts||[];
- const box=`<div class="fl" id="asgDepts">分配部门<span class="muted s13" style="display:block;font-weight:400">哪些部门的员工要练，可多选。发布后才会出现在他们的练习列表里。</span><div class="atoms" style="grid-template-columns:repeat(4,1fr)">${DEPT_CHIPS.slice(1).map(d=>`<label class="s13"><input type="checkbox" name="ad" value="${d}" ${D.includes(d)?'checked':''}> ${DMAP[d]}</label>`).join('')}</div></div>`;
+ const box=`<div class="fl" id="asgDepts">分配部门<span class="muted s13" style="display:block;font-weight:400">哪些部门的员工要练，可多选。发布后才会出现在他们的练习列表里。</span><div class="atoms adg">${DEPT_CHIPS.slice(1).map(d=>`<label class="s13"><input type="checkbox" name="ad" value="${d}" ${D.includes(d)?'checked':''}> ${DMAP[d]}</label>`).join('')}</div></div>`;
  const st=`<div class="sys" style="background:var(--yl);color:#7a5a1e;max-width:none;margin:0 0 8px">状态：<b>${cur.status||'草稿'}</b>${(cur.status||'草稿')=='草稿'?' · 员工端不可见，未分配到任何部门。选好分配部门后点「发布」。':' · 已分配：'+(D.map(d=>DMAP[d]).join('、')||'无')}</div>`;
  h=h.replace('<div id="fmsg"',box+'<div id="fmsg"');h=h.replace(/(<form[^>]*id="scForm"[^>]*>|<div[^>]*id="scForm"[^>]*>)/,'$1'+st);
  if(editId=='new')h=h.replace(/<button class="btn p" onclick="scSave\('已发布'\)">发布<\/button>/,'<span class="muted s13">新建场景先保存为草稿，再分配部门并发布</span>');return h};
@@ -362,4 +362,76 @@ const _scSave12=scSave;window.scSave=scSave=st=>{const F=$('#scForm');const ad=F
  const before=LS.get('scNew',[]).length;_scSave12(st);const nw=LS.get('scNew',[]);const id=wasNew?(nw.length>before?nw[nw.length-1].id:null):id0;if(!id||!isNew)return;
  const x=nw.find(s=>s.id==id);if(!x)return;x.depts=ad;LS.set('scNew',nw);
  if(x.status=='已发布'){const A=LS.get('assign',{});DEPT_CHIPS.slice(1).forEach(d=>{const cur=A[d]||assigned(d);if(ad.includes(d)){if(!cur.includes(id))A[d]=cur.concat(id)}else if(A[d])A[d]=A[d].filter(v=>v!=id)});LS.set('assign',A);audit('场景 '+id,'发布并分配','',ad.map(d=>DMAP[d]).join('、'))}go()};
+go();
+// ===================== r13：PM 决策修复 =====================
+// 1 部门示例红线（示例 · 待业务确认）：组合关键词规则，只作用于该部门的场景；更宽泛的说法靠 AI 判断（待环境）
+const RL_TAG='<span class="tag" title="示例红线，待业务确认">示例 · 待业务确认</span>';
+const NB='[^。！？!?；;]';const W=n=>NB+'{0,'+n+'}';
+const DEPT_REDLINES={
+ 销售:[{t:'私自承诺额外折扣或返点',d:'pol',re:['(给你|帮你|私下|额外|再|多)'+W(8)+'(折扣|返点|回扣|返利|[0-9一二三四五六七八九]折)','(返点|回扣|返利)'],ok:'申请|审批',fix:'折扣只在授权区间内给，超出的部分告诉客户需要走审批，不私下承诺返点。'},
+  {t:'承诺做不到的交付时间',d:'pol',re:['(保证|肯定|一定|包)'+W(8)+'(明天|今天|今晚|下周|[0-9一二两三]+天)'+W(6)+'(交付|上线|到货|发货|交|做完|搞定)'],fix:'交付时间先和交付团队确认再答复客户，给能兑现的时间。'},
+  {t:'贬低竞品时编造事实',d:'pol',re:['(他们|对方|竞品|那家|友商)'+W(10)+'(要倒闭|快倒闭|快不行|被罚|泄露过|出过大事故|是骗子|抄袭|都是假的)'],fix:'只讲我方能证明的差异，不评价、不编造竞品的情况。'}],
+ 售后:[{t:'泄露客户隐私',d:'pol',re:['(其他|别的)客户'+W(10)+'(电话|手机|地址|订单|信息|资料)','(他|她|客户)的(手机号|电话|身份证|住址|地址)'+W(6)+'(告诉|发给|给你)'],fix:'客户信息只用于本人的业务办理，不向任何第三方透露。'},
+  {t:'未经核实就承诺退款或赔偿',d:'pol',re:['(马上|立刻|现在就|直接|肯定|保证|一定)'+W(6)+'(退款|退钱|全额退|赔偿|赔你|补偿)'],ok:'核实|查清|查一下|确认后|审核',fix:'先核实订单和退款规则，再告诉客户能退什么、什么时候到账。'},
+  {t:'把责任推给客户或其他部门',d:'pol',re:['(是你|你自己|你们自己)'+W(6)+'(操作|搞错|填错|弄错|的问题|的责任)','(这是|都是|是)(物流|仓库|财务|技术|研发|那边|其他部门)'+W(4)+'(的问题|的错|的责任|搞的)','(不关|不归)我们'],fix:'先代表公司接住问题、道歉，再说明由谁跟进和什么时候答复。'}],
+ 研发:[{t:'直接修改生产数据',d:'pol',re:['(直接|先|手动|手工)'+W(6)+'(改|修改|更新|删|update|delete)'+W(6)+'(生产|线上|prod)'+W(4)+'(数据|库|表)','(生产|线上)(库|数据库|数据)'+W(4)+'(直接|手动)(改|删)'],fix:'生产数据变更走数据变更工单，经审核后由有权限的人执行并留痕。'},
+  {t:'跳过代码评审上线',d:'pol',re:['(跳过|不用|不走|绕过|免)'+W(4)+'(代码)?(评审|review|CR|审查)','(先上线|直接上线|直接合)'+W(8)+'(回头|事后|再)'+W(4)+'(评审|review|补)'],fix:'再急也要过代码评审，可以申请加急评审，而不是跳过。'},
+  {t:'把密钥或账号写进代码或发到群里',d:'pol',re:['(密钥|秘钥|密码|账号|token|AK|SK)'+W(10)+'(写进|写到|硬编码|提交到|发到|发群|贴到|发在)','(发到|贴到)群里'+W(6)+'(密钥|密码|账号|token)'],fix:'密钥放进密钥管理系统，按权限申请使用，不写进代码、不发到群里。'}],
+ 运维:[{t:'未经审批开通权限',d:'pol',re:['(先|直接|马上|立刻)'+W(4)+'(开|给|开通)'+W(8)+'权限','(回头|事后|之后|下周[一二三四五六日]?)'+W(4)+'补'+W(2)+'(审批|流程|单)','(不用|跳过|免)审批'],fix:'权限按审批流程开通，可以帮对方走加急审批，审批通过前不开。'},
+  {t:'跳过变更流程操作生产环境',d:'pol',re:['(跳过|不走|绕过|不用)'+W(4)+'变更','(直接|先)'+W(4)+'(在|上)?(生产|线上)'+W(6)+'(操作|改|重启|执行|发布)'],fix:'生产操作先提变更单，紧急情况走紧急变更流程并事后复盘。'},
+  {t:'没查清根因就对外宣布已恢复',d:'pol',re:['(已经|已)(恢复|修复|解决)'+W(10)+'(根因|原因)'+W(4)+'(还没|没|不|待)','(根因|原因)'+W(6)+'(还没|没|不清楚|未)'+W(10)+'(宣布|通知|说)'+W(4)+'(已经|已)?(恢复|修复|解决)','(先|直接)(宣布|通知|发)'+W(6)+'(已)?(恢复|修复)'],fix:'对外只说已确认的事实（服务已恢复、根因排查中），查清根因后再发结论。'}],
+ 产品:[{t:'未经评审向客户承诺功能或上线日期',d:'pol',re:['(保证|一定|肯定|答应|承诺)'+W(10)+'(下个版本|下版本|这周|下周|下个月|[0-9]+月|月底|这个迭代|本迭代)'+W(8)+'(上线|加上|排上|做出来|给你)','这周一定排上|保证加进去|直接插队'],ok:'评审|评估后',fix:'需求先进评审，评审通过后再给客户可承诺的版本和日期。'},
+  {t:'向外部透露未公开的产品路线图',d:'pol',re:['(路线图|roadmap|规划)'+W(10)+'(发给|发你|给你看|告诉你|透露)','(还没公开|没公开|未公开|内部)'+W(8)+'(规划|路线图|计划)'+W(6)+'(告诉|给你|发你)'],fix:'只讲已发布的能力，未公开的规划不对外透露。'}],
+ 采购:[{t:'收受供应商好处或私下接触',d:'pol',re:['(收|拿)'+W(4)+'(红包|好处|礼品|购物卡|回扣|返点)','(私下|单独)'+W(4)+'(吃饭|见面|聊|约)'],fix:'婉拒供应商的任何好处，沟通走公开渠道并留记录。'},
+  {t:'绕过比价或招标直接定供应商',d:'pol',re:['(跳过|不用|不走|绕过|免)'+W(4)+'(比价|招标|询价)','(直接|就)(定|选|用)'+W(4)+'(你们|他们|这家)'],fix:'按规定完成比价或招标，再根据结果确定供应商。'},
+  {t:'未经审批签合同或付款',d:'pol',re:['(先|直接)'+W(3)+'(签合同|签约|签了|付款|打款|付钱|下单)','(回头|事后)'+W(3)+'补'+W(2)+'(审批|合同)'],ok:'审批通过后|审批后|走完审批',fix:'合同和付款都要审批通过后再办理，急的话申请加急审批。'}],
+ 管理层:[{t:'当众谈论员工的薪资、绩效或处分',d:'pol',re:['(当着|当众|会上|群里|大家面前|大家都)'+W(10)+'(薪资|工资|绩效|处分|扣钱|奖金|考核)','(他|她)的(工资|薪资|绩效|处分|奖金)'+W(6)+'(是|拿|只有|才|被)'],fix:'薪资、绩效和处分只和本人一对一沟通，不在公开场合谈论。'},
+  {t:'绕过制度口头答应例外',d:'pol',re:['(口头|私下)'+W(6)+'(答应|同意|批|给你)','(这次|你这)'+W(4)+'(破例|例外|特殊处理)'+W(6)+'(可以|没问题|答应|行)','(不用管|不管)'+W(2)+'(制度|规定)'],fix:'例外按制度走书面审批，不口头答应。'}],
+ 业务线:[{t:'对外承诺超出授权的价格或合同条款',d:'pol',re:['(我|我们)'+W(4)+'(做主|拍板)'+W(8)+'(价格|折|条款|合同|账期|赔付)','(价格|条款|账期)'+W(6)+'(都可以|随便|你定|都能)','都可以答应'],ok:'授权|审批|法务',fix:'价格和合同条款只在授权范围内谈，超出的走审批或法务。'},
+  {t:'为完成指标要求下属跳过合规流程',d:'pol',re:['(跳过|不走|绕过|别管|省掉|先不走)'+W(6)+'(合规|流程|审核|审批|风控)'+W(10)+'(指标|业绩|完成|冲)','(为了|冲)'+W(6)+'(指标|业绩|KPI)'+W(10)+'(跳过|不走|绕过|先不管|别管)'],fix:'指标再紧也按合规流程走，卡住的环节由我出面协调提速。'}]};
+const RL_BYPASS=/跳过|不用|回头.{0,3}补|事后.{0,3}补|先.{0,4}再补/;
+// r13c：组合规则不看顺序——同一句里每组词都出现就算命中（只按 。！？； 断句；不增加关键词）
+const RL_SEP=/\[\^。！？!\?；;\]\{0,\d+\}/;
+// 同一句里讲明合规路径（申请 / 审批通过后 / 走审批 / 按流程 / 工单），且没有「跳过、回头补」等绕过说法时不判（与 r5 旧规则的豁免一致）
+const RL_COMPLIANT=/申请|审批通过|审批后|审核后|走.{0,4}审批|按.{0,6}流程|工单|变更单/;
+const rlGroups=alt=>alt.split(RL_SEP).filter(Boolean).map(g=>new RegExp(g,'i'));
+function deptRedline(dept,t){const raw=String(t).split(/[。！？!?；;]/),sents=raw.map(normRL);for(const r of (DEPT_REDLINES[dept]||[])){for(let k=0;k<sents.length;k++){const n=sents[k];if(!n)continue;const alt=r.re.find(a=>rlGroups(a).every(g=>g.test(n)));if(!alt)continue;if(!RL_BYPASS.test(n)&&((r.ok&&new RegExp(r.ok).test(n))||RL_COMPLIANT.test(n)))continue;return{...r,quote:raw[k].trim()}}}return null}
+const _gEval13=gEval;gEval=function(sc,i,t){const r=_gEval13(sc,i,t);const hit=deptRedline(sc.dept,t);if(hit){r.rl=hit;r.red=hit.quote;r.bad=true;r.d.pol=Math.min(r.d.pol,RL_CAP());r.k=(sc.krefs||[]).slice(-1)[0]||r.k}return r};
+const _gCompose13=gCompose;gCompose=function(r){const c=_gCompose13(r);if(r.rl)return{...c,red:'停一下：'+r.rl.t+'。这一遍'+GDIMS[r.rl.d]+'不达标。'+r.rl.fix+' '+RL_TAG+'<div class="s13" style="color:var(--t);margin-top:4px">你的原话：「'+String(r.rl.quote).replace(/</g,'&lt;')+'」</div>',fix:'按上面的正确做法换个说法，可以点「↺ 重练这一回合」再试；本遍已封顶 '+RL_CAP()+' 分，不计入掌握。',good:''};return c};
+const rlPanel=dept=>{const L=DEPT_REDLINES[dept]||[];return L.length?`<h3 style="margin-top:14px">本部门红线 ${RL_TAG}</h3><ul class="s13" style="margin:6px 0 0 18px;padding:0;line-height:1.7">${L.map(r=>`<li>${r.t}</li>`).join('')}</ul><div class="muted s13">按组合关键词识别；更宽泛的说法待环境（AI 判断）。触发后本遍封顶 ${RL_CAP()} 分，不计入掌握。</div>`:''};
+const _play13=R.play;R.play=()=>{let h=_play13();const sc=getSc(qid());if(sc&&sc.mode=='AI 陪练'&&h.includes('<h3 style="margin-top:14px">知识依据</h3>'))h=h.replace('<h3 style="margin-top:14px">知识依据</h3>',rlPanel(sc.dept)+'<h3 style="margin-top:14px">知识依据</h3>');return h};
+// 2 第 3 级提示解锁：每个场景单独计数（与掌握无关）；提交过至少 1 个回合的遍次都算（含重置 / 红线 / 不计入），0 回合的重置不算
+const UNLOCK_N=2;
+const ucDefault=id=>id=='S-087'?H().length:dH(id).length+legacyBase(id);
+const ucGet=id=>LS.get('uc_'+id,null)??ucDefault(id);
+const ucBump=(id,base)=>LS.set('uc_'+id,base+1);
+const l3Left=id=>Math.max(0,UNLOCK_N-ucGet(id));
+const L3CONFIRM='看完整提示后，这一遍不计入掌握。确定看吗？';
+function lockL3(id,used){const b=[...document.querySelectorAll('button')].find(x=>/^(d)?[Hh]int\(3\)$/.test((x.getAttribute('onclick')||'').trim()));if(!b)return;const n=l3Left(id);document.querySelectorAll('.l3lock').forEach(e=>e.remove());if(used||n<=0)return;
+ b.disabled=true;b.classList.add('locked');b.title='再练 '+n+' 遍可查看完整提示';b.insertAdjacentHTML('afterend',`<span class="l3lock" id="l3lock">再练 ${n} 遍可查看完整提示，先自己想想</span>`);
+ document.querySelectorAll('.sugg span[onclick]').forEach(c=>{c.style.opacity=.45;c.style.pointerEvents='none';c.title='再练 '+n+' 遍可查看参考话术'})}
+window.hint=n=>{const s=S();if(n>=3&&!(s.hint>=3)){if(l3Left('S-087')>0){toast('再练 '+l3Left('S-087')+' 遍可查看完整提示，先自己想想');return}if(!confirm(L3CONFIRM))return}s.hint=Math.max(s.hint||0,n);save(s);renderSess()};
+const _chip13=window.chip;window.chip=i=>{if(!(S().hint>=3)&&l3Left('S-087')>0){toast('再练 '+l3Left('S-087')+' 遍可查看完整提示，先自己想想');return}_chip13(i)};
+window.dHint=n=>{const s=dS(qid());if(n>=3&&!(s.hint>=3)){if(l3Left(s.id)>0){toast('再练 '+l3Left(s.id)+' 遍可查看完整提示，先自己想想');return}if(!confirm(L3CONFIRM))return}s.hint=Math.max(s.hint||0,n);dSave(s);go()};
+const _rs13=renderSess;renderSess=function(){_rs13();lockL3('S-087',S().hint>=3)};
+const _submit13=window.submitAtt;window.submitAtt=()=>{const s=S(),b=ucGet('S-087'),n0=H().length,had=s.turns.length;_submit13();if(H().length>n0&&had>0)ucBump('S-087',b)};
+const _reset13=window.resetAtt;window.resetAtt=()=>{const s=S(),b=ucGet('S-087'),had=s.turns.length,a0=s.att;_reset13();if(S().att!=a0&&had>0){ucBump('S-087',b);go()}};
+const _dsub13=window.dSubmit;window.dSubmit=()=>{const id=qid(),b=ucGet(id),n0=dH(id).length;_dsub13();if(dH(id).length>n0)ucBump(id,b)};
+const _drs13=window.dReset;window.dReset=()=>{const id=qid(),s=dS(id),b=ucGet(id),had=s.turns.length,a0=s.att;_drs13();if(dS(id).att!=a0&&had>0){ucBump(id,b);go()}};
+// A 文本复述：每个要点一组同义词；照抄最高 70，自己的话覆盖全部要点可到 100（同样覆盖时自己的话不会低于照抄）
+const SYN={'影响范围':/影响|范围|波及|涉及|受影响|用户|订单|商户/,'时间线':/时间线|时间|几点|点钟|先后|经过|期间|分钟|\d+[:：]\d+|开始|随后|接着|之后/,'原因':/原因|根因|因为|由于|导致|引起|起因/,'已做处置':/处置|处理|切换|回滚|重启|扩容|修复|止损|采取|措施|限流|降级|紧急|恢复/,'后续改进':/后续|改进|以后|今后|下一步|防止|避免|优化|复盘|整改|加固/,'不甩锅':/甩锅|抱歉|道歉|致歉|对不起|责任在我们|我们的责任|我们负责|承担|歉意/,
+ '写清分配决定':/决定|分配|定为|比例|各占/,'说明依据（贡献、事实、数据）':/依据|贡献|事实|数据|因为/,'回应两组各自的顾虑':/顾虑|担心|两组|双方|各自|理解/,'说明后续怎么避免同类分歧':/后续|以后|今后|避免|提前|约定|规则/};
+const ptHit=(s,t)=>SYN[s]?SYN[s].test(t):bigr(s).some(b=>t.includes(b));
+const PASTE_MAX=70;
+window.stepSubmit=(_ss=>()=>{const sc=getSc(qid());if(!sc||sc.mode=='沙盒实操'||!(sc.steps||[]).length)return _ss();const steps=sc.steps,t=$('#rtx').value;const pen=[];
+ const pts=steps.map(s=>({s,ok:ptHit(s,t),why:SYN[s]?'':undefined}));const cov=Math.round(100*pts.filter(p=>p.ok).length/steps.length);let score=cov,nc;
+ const ov=overlapRatio(t,sc);if(kwOnly(t)){pen.push('只列了关键词，没有用完整的话讲出来，扣 25 分');score-=25}
+ if(ov>=0.5){pen.push('和场景原文高度重合（'+Math.round(ov*100)+'%），照抄最高 '+PASTE_MAX+' 分，本遍不计入掌握');score=Math.min(score,PASTE_MAX);nc=true}else if(pasted(t,sc)){pen.push('部分照抄了场景描述，扣 20 分');score-=20}
+ score=Math.max(0,Math.min(100,score));const hs=dH(sc.id);hs.push({no:legacyBase(sc.id)+hs.length+1,score,pts,pen,nc:nc||undefined,var:'V-'+sc.id.slice(2)+'-a',hint:0});LS.set('dh_'+sc.id,hs);LS.del('draft_'+sc.id);go();toast('已评分：'+score+' 分')})(window.stepSubmit);
+const _ps13=playSteps;playSteps=function(sc){let h=_ps13(sc);if(sc.mode!='沙盒实操')h=h.replace(/(<div class="card"><div class="ch"><h2>(第 \d+ 次结果|结果)<\/h2>[\s\S]*?<\/div>)/,'$1<div class="muted s13" style="margin-bottom:6px">要点按同义词规则判断（如「时间线」也认 几点 / 先后 / 经过 / 时间）；语义评分 <span class="tag">待环境</span> · 照抄最高 '+PASTE_MAX+' 分</div>');return h};
+// D 新建 / 编辑场景：归属部门必填
+window.scSave=scSave=(_sv=>st=>{const F=$('#scForm');const d=F&&F.querySelector('[name=dept]');if(d&&!d.value){$('#fmsg').innerHTML='<span class="dn">请选择归属部门，再保存。</span>';d.focus();return}_sv(st)})(scSave);
+const _go13=go;go=function(){_go13();if(curRoute()=='play'&&qid()){const sc=getSc(qid());if(sc&&sc.mode=='AI 陪练')lockL3(sc.id,dS(sc.id).hint>=3)}};
+DEMO_NOTES.play.push('部门红线为示例（示例 · 待业务确认），按组合关键词识别，不看词序；更宽泛的说法待环境。','合规路径豁免：同一句讲明申请 / 审批通过后 / 走审批 / 按流程 / 工单，且没有跳过、回头补等说法时不判红线。这是原型的权宜做法，真正判断待环境（接入 AI 后再定）。','第 3 级提示：每个场景提交过 2 遍（含重置 / 红线，至少提交过 1 个回合）后才能看。','文本复述按要点同义词判断，语义评分待环境；照抄最高 70 分。');
+DEMO_NOTES.session.push('第 3 级提示：提交过 2 遍后才能看（与掌握计数分开）。');
 go();
