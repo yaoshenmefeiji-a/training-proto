@@ -11,7 +11,7 @@ const CONFIG={
   maxTurns:6
 };
 Object.assign(CONFIG,LS.get('config',{})); // 管理后台「带教与认证」保存的配置覆盖默认值
-const PASS=CONFIG.masteryLine, MENTOR_X=CONFIG.mentorAfterFails, CAP=CONFIG.hintCap;
+let PASS=CONFIG.masteryLine, MENTOR_X=CONFIG.mentorAfterFails; const CAP=CONFIG.hintCap;
 const DIMS=[['emp','共情与倾听'],['val','价值表达'],['pol','政策合规'],['ctl','谈判控场']];
 const VARS=[
  {id:'V-087-c3',who:'李总（模拟）',pct:18,open:'你好，我手上有另一家的报价单，同配置价格比你们低 18%。如果不能给到同样的价格，这次就算了，以后也不再考虑续费了。'},
@@ -139,7 +139,7 @@ window.weak=d=>{toast(`下一遍会针对「${d}」出题，客户会更难缠�
 // ---------- 练习场 / 队列 ----------
 function qData(){const hs=H(),last=hs.slice(-1)[0];return[
  ['S-087','价格异议：客户拿到竞品低价报价单','错题重练','r',`上一遍 ${last.score} 分 · 丢在「${DIMS.slice().sort((a,b)=>(last.dims||{})[a[0]]-(last.dims||{})[b[0]])[0][1]}」· K-5.3.1`,hs.map(h=>h.score),'今天到期','session'],
- ['S-124','续费引导：客户在找降期折扣','间隔复习','y','距上次 3 天 · 记忆曲线提醒',[52,47,60],'今天到期','session'],
+ ['S-124','续费引导 · 客户在犹豫期投诉','间隔复习','y','距上次 3 天 · 记忆曲线提醒',[52,47,60],'今天到期','session'],
  ['S-091','接口鉴权 401：客户生产环境报错','新场景','b','L2 认证必修 · 沙盒实操',[41,55],'今天','sandbox'],
  ['S-062','退款超时：客户要求赔付','巩固','g','已掌握 · 7 天后再巩固一次',[70,76,84,88,90,91,93,90,92,94],'10/17','session'],
  ['S-076','新客户开户：对公发票信息采集','间隔复习','y','文本复述 · 距上次 5 天',[62,70,66,74,63],'明天','retell']]}
@@ -196,7 +196,7 @@ R.cert=()=>`<div class="page"><div class="hd"><div><div class="eyebrow">个人</
  <div class="card"><div class="row"><h3>一线客服 · 入门</h3><span class="ml tag g">已认证</span></div><div style="margin:12px 0">${bar(100)}</div><div class="muted s13">已认证 · 2026-01-12 通过</div><div class="muted s13">已掌握 6/6 个场景 · 100%</div></div>
  <div class="card"><div class="row"><h3>一线客服 · L2 提级</h3><span class="ml tag o">练习中</span></div><div style="margin:12px 0">${bar(72,'#b48a2c')}</div><div>一线客服 · L2 提级 · 已掌握 13/18 个场景 · 72%</div><div class="muted s13">还有 5 个场景没掌握，全部掌握后就能参加认证练习。</div></div>
  <div class="card" style="opacity:.75"><div class="row"><h3>退换货专线</h3><span class="r tag">🔒 未解锁</span></div><div style="margin:12px 0">${bar(0)}</div><div class="muted s13">先完成「一线客服 · L2 提级」认证，这条路径才会打开。</div></div></div>
- <div class="grid g21" style="margin-top:16px"><div class="card"><div class="ch"><h2>L2 提级 · 还没掌握的 5 个场景</h2><span class="r muted s13">其余 13 个已掌握 · 掌握 = 连续 3 遍 ≥ ${PASS}</span></div><table><tr><th>场景</th><th>已练</th><th>最近 3 次</th><th></th></tr>${[['S-087 价格异议：客户拿到竞品低价报价单',H().length+' 遍',H().slice(-3).map(h=>h.score).join(' · '),'session'],['S-124 续费引导：客户在找降期折扣','3 遍','52 · 47 · 60','session'],['S-142 投诉升级：客户要求见主管','2 遍','66 · 71','session'],['S-150 发票冲红：月底跨期开错','1 遍','58','retell'],['S-133 物流理赔：包裹破损索赔','0 遍','—','session']].map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td class="mono">${r[2]}</td><td><a class="btn sm p" href="#/${r[3]}">去练</a></td></tr>`).join('')}</table>
+ <div class="grid g21" style="margin-top:16px"><div class="card"><div class="ch"><h2>L2 提级 · 还没掌握的 5 个场景</h2><span class="r muted s13">其余 13 个已掌握 · 掌握 = 连续 3 遍 ≥ ${PASS}</span></div><table><tr><th>场景</th><th>已练</th><th>最近 3 次</th><th></th></tr>${[['S-087 价格异议：客户拿到竞品低价报价单',H().length+' 遍',H().slice(-3).map(h=>h.score).join(' · '),'session'],['S-124 续费引导 · 客户在犹豫期投诉','3 遍','52 · 47 · 60','session'],['S-142 投诉升级：客户要求见主管','2 遍','66 · 71','session'],['S-150 发票冲红：月底跨期开错','1 遍','58','retell'],['S-133 物流理赔：包裹破损索赔','0 遍','—','session']].map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td class="mono">${r[2]}</td><td><a class="btn sm p" href="#/${r[3]}">去练</a></td></tr>`).join('')}</table>
  <div class="kref" style="margin-top:12px"><div class="row"><b>认证练习</b><span class="r tag">🔒 未解锁</span></div><div class="muted s13">这次的题你之前都没见过，只能用第 1 级提示。练完后{由带教确认}。</div></div></div>
  <div class="card"><div class="ch"><h2>上岗认证证书</h2><span class="ml tag g">有效</span></div><p>陈佳雯 已通过「一线客服 · 入门」认证。</p><div class="meta" style="margin:10px 0"><span>证书编号 <b>C-0348</b></span><span>通过日期 <b>2026-01-12</b></span><span>状态 <b>有效</b></span></div><button class="btn p" onclick="toast('链接已复制。打开的人只能看到证书，看不到你的练习记录。')">复制分享链接</button>
  <div class="kref" style="margin-top:14px;background:#faf9f6"><div class="muted s13">分享页预览（免登录）</div><b>陈佳雯 · 一线客服 · 入门 上岗认证</b><div class="s13">证书编号 C-0348，2026-01-12 通过，当前状态 有效。</div><div class="muted s13">由 {公司名} 培训系统签发。</div></div></div></div></div>`;
@@ -291,7 +291,7 @@ function bandOf(sc){return sc>=CONFIG.masteryLine?'high':sc>=CONFIG.midLine?'mid
 function evalRaw(i,t){const has=re=>re.test(t);
  const f={emp:has(/理解|明白|顾虑|确实|换谁|能理解|不容易|正常/),q:has(/[？?]|吗|哪|什么|方便/),num:has(/\d/)&&has(/万|小时|工时|%|元|天/),sla:has(/SLA|停机|工程师|工时|风险/),
   cite:(t.match(/K-\d\.\d\.\d/g)||[]),path:has(/年付|92\s*折|30\s*万|审批|阶梯|申请/),next:has(/约|周[一二三四五六日]|明天|下周|报价单|试用|回电|再聊|时间/),slow:has(/慢|举个|比如|例子|清楚吗|听懂/)};
- const pm=t.match(/([1-9](\.\d)?|[一二三四五六七八九])\s*折|打折|直接降|便宜\s*\d+/);const red=pm&&!/92\s*折/.test(pm[0])&&!(/申请|审批/.test(t)&&!/直接|就给|可以给/.test(t));
+ const pm=t.match(redlineRe('S-087'));const red=pm&&!/92\s*折/.test(pm[0])&&!(/申请|审批/.test(t)&&!/直接|就给|可以给/.test(t));
  const d={emp:52+(f.emp?28:0)+(f.q?8:0)+(f.slow?6:0),val:48+(f.num?24:0)+(f.sla?12:0)+(f.cite.length?6:0),pol:78+(f.path?12:0)+(f.cite.length?4:0),ctl:52+(f.next?26:0)+(f.q?8:0)+(f.path?6:0)};
  if(red)d.pol=28;Object.keys(d).forEach(k=>d[k]=Math.max(20,Math.min(96,d[k]-(t.length<12?12:0))));
  const goods=[];if(f.emp)goods.push('先接住了客户情绪');if(f.q)goods.push('用提问把话题交回客户');if(f.num)goods.push('给出了能汇报的具体数字');if(f.sla&&!f.num)goods.push('提到了 SLA / 专属工程师的价值');if(f.path&&!red)goods.push('给了区间内的合规降价路径');if(f.next)goods.push('约定了下一步');if(f.slow)goods.push('放慢并确认客户听懂');if(f.cite.length)goods.push('引用了 '+f.cite.join('、'));

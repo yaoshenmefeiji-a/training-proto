@@ -129,3 +129,6 @@ td select{border:1px solid var(--line);border-radius:6px;padding:3px 6px;font:in
 #mydept{border:1px solid var(--line);border-radius:6px;padding:2px 4px;font:inherit;font-size:13px}
 .atoms input{display:inline-block!important;width:auto!important;margin:0 6px 0 0!important;vertical-align:middle}
 .heat{grid-template-columns:repeat(auto-fill,minmax(16px,1fr))!important}.heat i{max-width:26px}
+/* r5：宽屏对话区居中成列，避免中间大片空白 */
+.chat{padding-left:max(24px,calc((100% - 1040px)/2))!important;padding-right:max(24px,calc((100% - 1040px)/2))!important}
+.chat .msg,.chat .coach,.chat .sys{max-width:88%}
