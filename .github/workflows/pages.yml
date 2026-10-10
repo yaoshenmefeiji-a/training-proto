@@ -23,6 +23,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # r14：自动缓存刷新——把 index.html 里所有 ?v=xxx 换成本次提交的短 SHA（本地开发保持 ?v=dev）
+      - name: Stamp cache-busting version
+        run: |
+          SHORT_SHA="${GITHUB_SHA::7}"
+          sed -i -E "s/\?v=[A-Za-z0-9._-]+/?v=${SHORT_SHA}/g" index.html
+          echo "Stamped ?v=${SHORT_SHA}"
+          grep -o '?v=[A-Za-z0-9._-]*' index.html | sort | uniq -c
+          if grep -q '?v=dev' index.html; then echo "::error::?v=dev still present"; exit 1; fi
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:

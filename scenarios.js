@@ -485,6 +485,15 @@ function weeklyPractice(){const B=window.__DBASE||null;return Object.entries(DDA
 const fmtN=n=>n.toLocaleString('en-US');
 
 // 红线匹配前统一写法：您→你、咱们→我们、去空白、全角数字→半角（只改匹配方式，不加业务词）
+// r14：取消「合规路径豁免」的共用词表（S-087 和所有部门场景共用，新场景自动生效）
+// 先做后补 / 审批放到事后 / 嫌流程慢：同一句里出现任一项，即使提到申请 / 审批也不豁免。
+// 「审批通过后 / 批下来后 …」这一小句（到下一个逗号为止）是合规的先后顺序，先去掉再查「先做」类说法；后面紧跟「补」时不去掉。
+const RL_CANCEL={
+ actFirst:/现在就(给你?)?开|马上(就)?(给你?)?开|立刻(给你?)?开|直接(给你?)?开|直接给|先开|先给.{0,6}开|先用着|先(把)?账号.{0,3}(借|给)/,
+ deferral:/回头.{0,3}补|事后.{0,3}补|以后再补|往后推|先.{0,4}再补|(审批|审核|批下来)(通过)?(之|以)?后再?补/,
+ dismissal:/太慢|不用等|先不管|跳过|不用(?!担心|客气|急)/};
+const RL_GATE_RE=/(审批通过|审核通过|审批|审核|批下来|通过)(之后|以后|后)(?!再?补)[^，,。！？!?；;]*/g;
+function rlCancel(t){return String(t).split(/[。！？!?；;]/).some(x=>{const n=normRL(x),g=n.replace(RL_GATE_RE,'');return RL_CANCEL.actFirst.test(g)||RL_CANCEL.deferral.test(n)||RL_CANCEL.dismissal.test(n)})}
 function normRL(t){return String(t).replace(/您/g,'你').replace(/咱们/g,'我们').replace(/\s+/g,'').replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248))}
 // ===== r12 =====
 // 最好成绩：不计入掌握（nc：红线 / 照抄）的遍次不算
