@@ -86,7 +86,7 @@ function rightPanel(s,c){const tb=`<div class="tabs">${[['ref','引用'],['pur',
  if(tab=='pur')return tb+`<h3>双向目的</h3><div class="kref" style="background:var(--bl);margin-top:8px"><div class="muted s13">客户 · ${v.who}</div>压价至对标 · 拿回本季度 KPI</div><div class="kref" style="background:var(--gl)"><div class="muted s13">我方</div>守住底线 · 转向综合价值</div><div class="muted s13">本遍变体 ${v.id}：对方低 ${v.pct}% · seed ${s.seed}</div>`;
  const scoreHtml=`<h3>本遍维度评分</h3><div class="muted s13" style="margin-bottom:8px">每回合提交后刷新 · 达标线 ${PASS}</div>${DIMS.map(([k,n])=>`<div class="dim"><div class="row"><span>${n}${k=='pol'&&c.red?' <span class="tag r">红线 · 不达标</span>':''}</span><b class="r">${c.d[k]}</b></div>${bar(c.d[k],c.d[k]<60?'#b2463b':c.d[k]<75?'#b48a2c':'')}</div>`).join('')}<div class="row" style="margin-top:6px"><b>综合</b><b class="r" style="font-size:20px">${c.score}</b></div>${s.hint?`<div class="muted s13">已用第 ${s.hint} 级提示 · 本遍上限 ${CAP[s.hint]}</div>`:''}`;
  if(tab=='sco')return tb+scoreHtml;
- return tb+`<h3>对照知识库</h3><div class="muted s13" style="margin:4px 0 8px">点击跳转 · 并在对话中插入引用</div>${[['K-5.3.1','价格异议话术 · 共情三段式','共情 → 价值换算 → 合规降价路径'],['K-1.2.3','企业合同价 · 阶梯折扣规则','30 万以下标准价，30–80 万 92 折'],['K-1.2.5','促销叠加限制','阶梯折扣不可与单品促销同时生效']].map(k=>`<div class="kref ${lk==k[0]?'on':''}" onclick="insRef('${k[0]}')" style="cursor:pointer"><div class="row"><span class="mono">${k[0]}</span>${lk==k[0]?'<span class="tag g ml">刚命中</span>':''}${k[0]=='K-1.2.3'&&c.red?'<span class="tag r">违反</span>':''}</div><b>${k[1]}</b><div class="muted s13">${k[2]}</div></div>`).join('')}<div style="margin-top:14px">${scoreHtml}</div>`}
+ return tb+`<h3>对照知识库</h3><div class="muted s13" style="margin:4px 0 8px">点击跳转 · 并在对话中插入引用</div>${[['K-5.3.1','价格异议话术 · 共情三段式','共情 → 价值换算 → 合规降价路径'],['K-1.2.3','企业合同价 · 阶梯折扣规则','30 万以下标准价，30–80 万 92 折'],['K-1.2.5','促销叠加限制','阶梯折扣不可与单品促销同时生效']].map(k=>`<div class="kref ${lk==k[0]?'on':''}" onclick="insRef('${k[0]}')" style="cursor:pointer"><div class="row"><span class="mono">${k[0]}</span>${lk==k[0]?'<span class="tag g ml">刚命中</span>':''}${k[0]==(lk=='K-1.2.5'?'K-1.2.5':'K-1.2.3')&&c.red?'<span class="tag r">违反</span>':''}</div><b>${k[1]}</b><div class="muted s13">${k[2]}</div></div>`).join('')}<div style="margin-top:14px">${scoreHtml}</div>`}
 function renderInput(s){const done=s.turns.length>=6;$('#hl').innerHTML=`<span class="muted s13">提示</span>${['方向','要点','参考话术'].map((n,i)=>`<button class="btn sm ${s.hint>i?'used':''}" onclick="hint(${i+1})" ${done?'disabled':''}>第 ${i+1} 级 · ${n}${i==2?'（不计入连续通过）':''}</button>`).join('')}<span class="r muted s13">得分上限 ${CAP[1]} / ${CAP[2]} / ${CAP[3]}</span>${s.hint?`<div style="width:100%">${HINTS.slice(1,s.hint+1).map(x=>`<div class="hintbox">${x.replace('{pct}',VARS[s.vi].pct)}</div>`).join('')}</div>`:''}`;
  $('#ta').disabled=done;$('#ta').placeholder=done?'本遍回合已满，提交后看结果页':'输入你的回复…（⌘↵ 发送）';}
 window.hint=n=>{const s=S();if(n>=3&&s.hint<3&&!confirm('看参考话术后，这一遍不计入「连续通过」。确定看吗？'))return;s.hint=Math.max(s.hint,n);save(s);renderSess()};
@@ -237,7 +237,7 @@ function evalReply(i,t){const has=re=>re.test(t);
   cite=(t.match(/K-\d\.\d\.\d/g)||[]),path=has(/年付|92\s*折|30\s*万|审批|阶梯|申请/),next=has(/约|周[一二三四五六日]|明天|下周|报价单|试用|回电|再聊|时间/),slow=has(/慢|举个|比如|例子|清楚吗|听懂/);
  const promise=t.match(/([1-9](\.\d)?|[一二三四五六七八九])\s*折|打折|直接降|便宜\s*\d+/);const red=promise&&!/92\s*折/.test(promise[0])&&!(/申请|审批/.test(t)&&!/直接|就给|可以给/.test(t));
  const d={emp:52+(emp?28:0)+(q?8:0)+(slow?6:0),val:48+(num?24:0)+(sla?12:0)+(cite.length?6:0),pol:78+(path?12:0)+(cite.length?4:0),ctl:52+(next?26:0)+(q?8:0)+(path?6:0)};
- if(red)d.pol=28;Object.keys(d).forEach(k=>d[k]=Math.max(20,Math.min(96,d[k]-(t.length<12?12:0))));
+ if(red||st)d.pol=28;Object.keys(d).forEach(k=>d[k]=Math.max(20,Math.min(96,d[k]-(t.length<12?12:0))));
  const good=[],fix=[];
  if(emp)good.push('先接住了客户情绪');if(q)good.push('用提问把话题交回客户');if(num)good.push('给出了具体数字，客户能拿去汇报');if(sla&&!num)good.push('提到了 SLA / 专属工程师的价值');if(path&&!red)good.push('给了 K-1.2.3 区间内的合规降价路径');if(next)good.push('约定了下一步');if(slow)good.push('放慢节奏并确认客户听懂');if(cite.length)good.push('引用了 '+cite.join('、'));
  const need={emp:[emp,'先回应情绪，比如「理解，换谁都会犹豫」（K-5.3.1 第 1 步）'],val:[num,'把差价换成具体数字：停机小时 × 每小时损失、省下的工时（K-5.3.1 第 2 步）'],pol:[path,'客户认了价值后，给一条合规路径：年付或采购额到 30 万走 92 折（K-1.2.3）'],ctl:[next,'收尾约定具体的下一步和时间，别只说「有问题随时联系」（错误示例 S-087-E3）']};
@@ -284,6 +284,8 @@ const BAND_COPY={
   high:{good:'这一回合到位：{点}（{K}）', fix:'保持住，下一回合留意 {下一个要点}'},           // score >= CONFIG.masteryLine
   mid: {good:'方向对了：{点}',            fix:'还差一步：{缺的点}，看看 {K}'},                 // CONFIG.midLine <= score < masteryLine
   low: {good:'你注意到了 {可取之处}',     fix:'这一回合没抓到要点：{问题}。先看 {K} 的第 {N} 步'}, // score < CONFIG.midLine；无可取之处时隐藏「做得好」
+  // r14：在一个折扣基础上再叠加折扣（K-1.2.5 促销叠加限制）；{折扣} = 员工原话里的第一个折扣
+  stack:{card:'停一下：你在 {折扣} 的基础上又加了折扣。按 K-1.2.5，阶梯折扣不能和单品促销同时用，这一遍政策合规不达标。', fix:'告诉客户阶梯折扣和单品促销只能二选一，帮他算一下哪个更划算，给出建议。'},
   redline:{card:'停一下：你承诺的「{承诺}」超出了 K-1.2.3 的范围（年采购额 30 万以下仅标准价）。这一遍政策合规不达标。', fix:'在 K-1.2.3 区间内给（30–80 万 92 折），或者告诉客户需要申请审批；先把差价换算成价值（K-5.3.1）。'},
   // 部门场景（S-2xx）通用：知识依据是占位编号，没有「第 N 步」
   lowGeneric:{good:'你注意到了 {可取之处}', fix:'这一回合没抓到要点：{问题}。先看 {K}'},
@@ -292,18 +294,23 @@ const BAND_COPY={
 const NEXT_TIP=['先接住客户情绪，再问他最看重什么','把差价换成能汇报的数字','给出具体金额或工时','客户认了价值后给一条合规降价路径','客户没听懂时放慢、举例、确认','收尾约定具体的下一步和时间','—'];
 const fillT=(t,o)=>t.replace(/\{([^}]+)\}/g,(m,k)=>o[k]!=null?o[k]:m);
 function bandOf(sc){return sc>=CONFIG.masteryLine?'high':sc>=CONFIG.midLine?'mid':'low'}
+// r14：折扣叠加——「A 折基础上再给 B 折」「A 折再打 B 折」等；返回员工原话里的第一个折扣（含原空格）
+const DISC_RE='(?<![0-9.一二三四五六七八九])(?:[0-9]+(?:\\.[0-9]+)?|[一二三四五六七八九]{1,2})\\s*折';
+const STACK_RES=[new RegExp('('+DISC_RE+')\\s*(?:的)?(?:价格)?(?:的)?\\s*基础上[^。！？!?；;]{0,10}(?:再|又|额外|叠加)[^。！？!?；;]{0,8}(?:'+DISC_RE+'|折扣|优惠|折)'),new RegExp('('+DISC_RE+')[^。！？!?；;]{0,6}(?:再|又|叠加)(?:打|给|加|让|叠|上)?[^。！？!?；;]{0,4}'+DISC_RE)];
+function stackOf(t){for(const re of STACK_RES){const m=String(t).match(re);if(m)return m[1].trim()}return null}
 function evalRaw(i,t){const has=re=>re.test(t);
  const f={emp:has(/理解|明白|顾虑|确实|换谁|能理解|不容易|正常/),q:has(/[？?]|吗|哪|什么|方便/),num:has(/\d/)&&has(/万|小时|工时|%|元|天/),sla:has(/SLA|停机|工程师|工时|风险/),
   cite:(t.match(/K-\d\.\d\.\d/g)||[]),path:has(/年付|92\s*折|30\s*万|审批|阶梯|申请/),next:has(/约|周[一二三四五六日]|明天|下周|报价单|试用|回电|再聊|时间/),slow:has(/慢|举个|比如|例子|清楚吗|听懂/)};
  const pm=normRL(t).match(redlineRe('S-087'));const red=pm&&!/92\s*折/.test(pm[0])&&!(/申请|审批/.test(t)&&!/直接|就给|可以给/.test(t));
+ const st=stackOf(t);
  const d={emp:52+(f.emp?28:0)+(f.q?8:0)+(f.slow?6:0),val:48+(f.num?24:0)+(f.sla?12:0)+(f.cite.length?6:0),pol:78+(f.path?12:0)+(f.cite.length?4:0),ctl:52+(f.next?26:0)+(f.q?8:0)+(f.path?6:0)};
  if(red)d.pol=28;Object.keys(d).forEach(k=>d[k]=Math.max(20,Math.min(96,d[k]-(t.length<12?12:0))));
- const goods=[];if(f.emp)goods.push('先接住了客户情绪');if(f.q)goods.push('用提问把话题交回客户');if(f.num)goods.push('给出了能汇报的具体数字');if(f.sla&&!f.num)goods.push('提到了 SLA / 专属工程师的价值');if(f.path&&!red)goods.push('给了区间内的合规降价路径');if(f.next)goods.push('约定了下一步');if(f.slow)goods.push('放慢并确认客户听懂');if(f.cite.length)goods.push('引用了 '+f.cite.join('、'));
+ const goods=[];if(f.emp)goods.push('先接住了客户情绪');if(f.q)goods.push('用提问把话题交回客户');if(f.num)goods.push('给出了能汇报的具体数字');if(f.sla&&!f.num)goods.push('提到了 SLA / 专属工程师的价值');if(f.path&&!red&&!st)goods.push('给了区间内的合规降价路径');if(f.next)goods.push('约定了下一步');if(f.slow)goods.push('放慢并确认客户听懂');if(f.cite.length)goods.push('引用了 '+f.cite.join('、'));
  const NEED={emp:[f.emp,'没有先回应客户情绪','K-5.3.1',1],val:[f.num,'没有把差价换成具体数字','K-5.3.1',2],pol:[f.path,'没有给合规的降价路径','K-1.2.3',1],ctl:[f.next,'没有约定下一步','K-5.3.1',3]};
  const exp=['emp','val','val','pol','emp','ctl'][i];const misses=[];if(!NEED[exp][0])misses.push(NEED[exp].slice(1));if(i==4&&!f.slow)misses.push(['客户说没听懂，你没有放慢举例','K-5.3.1',3]);
  if(t.length<12)misses.push(['回答太短，客户会觉得被敷衍','K-5.3.1',1]);
- return{raw:1,i,d,goods,misses,red:red?pm[0]:null,k:red?'K-1.2.3':(misses[0]?misses[0][1]:(exp=='pol'?'K-1.2.3':'K-5.3.1')),bad:!!red||misses.length>0}}
-function compose(r){const sc=tAvg(r);if(r.red)return{...r,red:fillT(BAND_COPY.redline.card,{'承诺':r.red}),good:'',fix:BAND_COPY.redline.fix,k:'K-1.2.3'};
+ return{raw:1,i,d,goods,misses,red:st?st:red?pm[0]:null,stack:st?1:0,k:st?'K-1.2.5':red?'K-1.2.3':(misses[0]?misses[0][1]:(exp=='pol'?'K-1.2.3':'K-5.3.1')),bad:!!red||!!st||misses.length>0}}
+function compose(r){const sc=tAvg(r);if(r.red&&r.stack)return{...r,red:fillT(BAND_COPY.stack.card,{'折扣':r.red}),good:'',fix:BAND_COPY.stack.fix,k:'K-1.2.5'};if(r.red)return{...r,red:fillT(BAND_COPY.redline.card,{'承诺':r.red}),good:'',fix:BAND_COPY.redline.fix,k:'K-1.2.3'};
  const b=bandOf(sc),c=BAND_COPY[b];let m=r.misses[0];if(!m&&b!='high'){const w=Object.keys(r.d).sort((x,y)=>r.d[x]-r.d[y])[0];m={emp:['没有先回应客户情绪','K-5.3.1',1],val:['没有把差价换成具体数字','K-5.3.1',2],pol:['没有给合规的降价路径','K-1.2.3',1],ctl:['没有约定下一步','K-5.3.1',3]}[w]}const K=m?m[1]:r.k;const pts=r.goods.slice(0,2).join('、');
  if(b=='high')return{...r,good:fillT(c.good,{'点':pts||'回应完整','K':r.k}),fix:fillT(c.fix,{'下一个要点':NEXT_TIP[r.i+1]})};
  if(b=='mid')return{...r,good:fillT(c.good,{'点':pts||'接住了客户的话'}),fix:fillT(c.fix,{'缺的点':m?m[0].replace(/^没有/,''):NEXT_TIP[r.i+1],'K':K})};

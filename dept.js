@@ -25,7 +25,7 @@ const varId=(id,vi)=>'V-'+id.slice(2)+'-'+MOODS[vi].k;
 function gEval(sc,i,t){const has=re=>re.test(t);
  const f={emp:has(/理解|明白|确实|能理解|不容易|辛苦|着急|抱歉|感谢|知道您|换我/),q:has(/[？?]|吗|哪|什么|方便|您看/),spec:has(/\d|周[一二三四五六日]|下周|明天|今天|小时|天内|版本/),path:has(/方案|流程|审批|替代|分阶段|先|评估|变更|规则|标准|按照|升级|复盘|排查|计划/),
   next:has(/约|下周|明天|跟进|同步|回复您|答复|时间|会议|对齐/),cite:t.match(/\{?K-[^\s}，。]+\}?/g)||[]};
- let pm=normRL(t).match(redlineRe(sc.id,sc.dept));if(pm&&/申请|走.{0,4}审批|按.{0,6}流程/.test(t)&&!/回头.{0,3}补|事后.{0,3}补|跳过|不用/.test(t))pm=null;
+ let pm=normRL(t).match(redlineRe(sc.id,sc.dept));if(pm&&/申请|走.{0,4}审批|按.{0,6}流程/.test(t)&&!/回头.{0,3}补|事后.{0,3}补|跳过|不用/.test(t)&&!String(t).split(/[。！？!?；;]/).some(x=>rlNoExempt(normRL(x))))pm=null;
  const d={emp:52+(f.emp?28:0)+(f.q?8:0),val:50+(f.spec?20:0)+(f.path?14:0)+(f.cite.length?6:0),pol:76+(f.path?10:0)+(f.cite.length?6:0),ctl:52+(f.next?24:0)+(f.q?6:0)+(f.spec?6:0)};
  if(pm)d.pol=28;const prevT=(dS(sc.id).turns||[]).filter((x,j)=>j!=i).map(x=>x.t);const rep=prevT.includes(t);if(rep)Object.keys(d).forEach(k=>d[k]-=25);Object.keys(d).forEach(k=>d[k]=Math.max(20,Math.min(96,d[k]-(t.length<12?12:0))));
  const goods=[];if(f.emp)goods.push('先接住了对方的处境');if(f.q)goods.push('用提问弄清对方真实诉求');if(f.spec)goods.push('给了具体的时间或数字');if(f.path)goods.push('讲清了流程 / 方案');if(f.next)goods.push('约定了下一步');if(f.cite.length)goods.push('引用了 '+f.cite.join('、'));
@@ -341,8 +341,8 @@ go();
 // ===================== r12：PM 决策修复 =====================
 // 1 红线：触发即本遍进入低档（< midLine），且不计入掌握；红线回合本身也落在低档
 const RL_CAP=()=>CONFIG.midLine-25; // 默认 40，明显低于任何合规回答
-const _gEval12=gEval;gEval=function(sc,i,t){const r=_gEval12(sc,i,t);if(r.red){const q=rlQuote(t,redlineRe(sc.id,sc.dept));if(q)r.red=q;r.d.pol=Math.min(r.d.pol,RL_CAP())}return r};
-const _evalRaw12=evalRaw;evalRaw=function(i,t){const r=_evalRaw12(i,t);if(r.red){const q=rlQuote(t,redlineRe('S-087'));if(q)r.red=q;r.d.pol=Math.min(r.d.pol,RL_CAP())}return r};
+const _gEval12=gEval;gEval=function(sc,i,t){const r=_gEval12(sc,i,t);if(r.red){const q=rlQuote(t,redlineRe(sc.id,sc.dept));if(q)r.red=q;r.d.pol=Math.min(r.d.pol,RL_CAP())}else if(r.red)r.d.pol=Math.min(r.d.pol,RL_CAP());return r};
+const _evalRaw12=evalRaw;evalRaw=function(i,t){const r=_evalRaw12(i,t);if(r.red&&!r.stack){const q=rlQuote(t,redlineRe('S-087'));if(q)r.red=q;r.d.pol=Math.min(r.d.pol,RL_CAP())}return r};
 const _gCalc12=gCalc;gCalc=function(turns,hint){const c=_gCalc12(turns,hint);if(c.red&&c.score!=null)c.score=Math.min(c.score,RL_CAP());return c};
 const _calc12=calc;calc=function(turns,hint){const c=_calc12(turns,hint);if(c.red)c.score=Math.min(c.score,RL_CAP());return c};
 // 2 复述重合度：原文与作答都去掉标点 / 分隔符再比（原来步骤用「|」拼接、界面显示用「 · 」，跨分隔符的 6 字片段全部算不重合，整段照抄只有约 51%）
@@ -377,7 +377,7 @@ const DEPT_REDLINES={
  研发:[{t:'直接修改生产数据',d:'pol',re:['(直接|先|手动|手工)'+W(6)+'(改|修改|更新|删|update|delete)'+W(6)+'(生产|线上|prod)'+W(4)+'(数据|库|表)','(生产|线上)(库|数据库|数据)'+W(4)+'(直接|手动)(改|删)'],fix:'生产数据变更走数据变更工单，经审核后由有权限的人执行并留痕。'},
   {t:'跳过代码评审上线',d:'pol',re:['(跳过|不用|不走|绕过|免)'+W(4)+'(代码)?(评审|review|CR|审查)','(先上线|直接上线|直接合)'+W(8)+'(回头|事后|再)'+W(4)+'(评审|review|补)'],fix:'再急也要过代码评审，可以申请加急评审，而不是跳过。'},
   {t:'把密钥或账号写进代码或发到群里',d:'pol',re:['(密钥|秘钥|密码|账号|token|AK|SK)'+W(10)+'(写进|写到|硬编码|提交到|发到|发群|贴到|发在)','(发到|贴到)群里'+W(6)+'(密钥|密码|账号|token)'],fix:'密钥放进密钥管理系统，按权限申请使用，不写进代码、不发到群里。'}],
- 运维:[{t:'未经审批开通权限',d:'pol',re:['(先|直接|马上|立刻)'+W(4)+'(开|给|开通)'+W(8)+'权限','(回头|事后|之后|下周[一二三四五六日]?)'+W(4)+'补'+W(2)+'(审批|流程|单)','(不用|跳过|免)审批'],fix:'权限按审批流程开通，可以帮对方走加急审批，审批通过前不开。'},
+ 运维:[{t:'未经审批开通权限',d:'pol',re:['(先|直接|马上|立刻)'+W(4)+'(开|给|开通)'+W(8)+'权限','(回头|事后|之后|下周[一二三四五六日]?)'+W(4)+'补'+W(2)+'(审批|流程|单)','(不用|跳过|免)审批','(现在就|马上就?|立刻|直接|先)'+W(3)+'(开|给你开|给开)'+W(10)+'权限','(下周|以后|事后|回头|改天)'+W(4)+'(提|补)'+W(2)+'申请','(太慢|不用等|先不管)'+W(10)+'(直接|先|马上|现在就|立刻)'+W(4)+'(开|给)'],fix:'权限按审批流程开通，可以帮对方走加急审批，审批通过前不开。'},
   {t:'跳过变更流程操作生产环境',d:'pol',re:['(跳过|不走|绕过|不用)'+W(4)+'变更','(直接|先)'+W(4)+'(在|上)?(生产|线上)'+W(6)+'(操作|改|重启|执行|发布)'],fix:'生产操作先提变更单，紧急情况走紧急变更流程并事后复盘。'},
   {t:'没查清根因就对外宣布已恢复',d:'pol',re:['(已经|已)(恢复|修复|解决)'+W(10)+'(根因|原因)'+W(4)+'(还没|没|不|待)','(根因|原因)'+W(6)+'(还没|没|不清楚|未)'+W(10)+'(宣布|通知|说)'+W(4)+'(已经|已)?(恢复|修复|解决)','(先|直接)(宣布|通知|发)'+W(6)+'(已)?(恢复|修复)'],fix:'对外只说已确认的事实（服务已恢复、根因排查中），查清根因后再发结论。'}],
  产品:[{t:'未经评审向客户承诺功能或上线日期',d:'pol',re:['(保证|一定|肯定|答应|承诺)'+W(10)+'(下个版本|下版本|这周|下周|下个月|[0-9]+月|月底|这个迭代|本迭代)'+W(8)+'(上线|加上|排上|做出来|给你)','这周一定排上|保证加进去|直接插队'],ok:'评审|评估后',fix:'需求先进评审，评审通过后再给客户可承诺的版本和日期。'},
@@ -394,8 +394,15 @@ const RL_BYPASS=/跳过|不用|回头.{0,3}补|事后.{0,3}补|先.{0,4}再补/;
 const RL_SEP=/\[\^。！？!\?；;\]\{0,\d+\}/;
 // 同一句里讲明合规路径（申请 / 审批通过后 / 走审批 / 按流程 / 工单），且没有「跳过、回头补」等绕过说法时不判（与 r5 旧规则的豁免一致）
 const RL_COMPLIANT=/申请|审批通过|审批后|审核后|走.{0,4}审批|按.{0,6}流程|工单|变更单/;
+// r14：豁免收紧——同一句里有「先做后补 / 拖后申请 / 嫌流程慢」的说法时不豁免。
+// 顺序处理：「审批通过后 / 审核后 / 批下来后 …」后面的「马上给你开通」是合规的先后顺序，先去掉这段再判断
+const RL_GATE=/(审批通过|审核通过|审批|审核|批下来|通过)(之后|以后|后)[^，,。！？!?；;]*/g;
+const RL_ACTFIRST=/现在就(给你?)?开|马上(就)?(给你?)?开|立刻(给你?)?开|直接(给你?)?开|直接给|先开|先给.{0,6}开/;
+const RL_DEFER=/(下周|以后|事后|回头|之后|改天).{0,6}(提|补).{0,3}申请|申请.{0,8}(下周|以后|事后|回头|改天).{0,4}(提|补)/;
+const RL_DISMISS=/太慢|不用等|先不管/;
+const rlNoExempt=n=>{const g=n.replace(RL_GATE,'');return RL_BYPASS.test(n)||RL_ACTFIRST.test(g)||RL_DEFER.test(g)||RL_DISMISS.test(n)};
 const rlGroups=alt=>alt.split(RL_SEP).filter(Boolean).map(g=>new RegExp(g,'i'));
-function deptRedline(dept,t){const raw=String(t).split(/[。！？!?；;]/),sents=raw.map(normRL);for(const r of (DEPT_REDLINES[dept]||[])){for(let k=0;k<sents.length;k++){const n=sents[k];if(!n)continue;const alt=r.re.find(a=>rlGroups(a).every(g=>g.test(n)));if(!alt)continue;if(!RL_BYPASS.test(n)&&((r.ok&&new RegExp(r.ok).test(n))||RL_COMPLIANT.test(n)))continue;return{...r,quote:raw[k].trim()}}}return null}
+function deptRedline(dept,t){const raw=String(t).split(/[。！？!?；;]/),sents=raw.map(normRL);for(const r of (DEPT_REDLINES[dept]||[])){for(let k=0;k<sents.length;k++){const n=sents[k];if(!n)continue;const alt=r.re.find(a=>rlGroups(a).every(g=>g.test(n)));if(!alt)continue;if(!rlNoExempt(n)&&((r.ok&&new RegExp(r.ok).test(n))||RL_COMPLIANT.test(n)))continue;return{...r,quote:raw[k].trim()}}}return null}
 const _gEval13=gEval;gEval=function(sc,i,t){const r=_gEval13(sc,i,t);const hit=deptRedline(sc.dept,t);if(hit){r.rl=hit;r.red=hit.quote;r.bad=true;r.d.pol=Math.min(r.d.pol,RL_CAP());r.k=(sc.krefs||[]).slice(-1)[0]||r.k}return r};
 const _gCompose13=gCompose;gCompose=function(r){const c=_gCompose13(r);if(r.rl)return{...c,red:'停一下：'+r.rl.t+'。这一遍'+GDIMS[r.rl.d]+'不达标。'+r.rl.fix+' '+RL_TAG+'<div class="s13" style="color:var(--t);margin-top:4px">你的原话：「'+String(r.rl.quote).replace(/</g,'&lt;')+'」</div>',fix:'按上面的正确做法换个说法，可以点「↺ 重练这一回合」再试；本遍已封顶 '+RL_CAP()+' 分，不计入掌握。',good:''};return c};
 const rlPanel=dept=>{const L=DEPT_REDLINES[dept]||[];return L.length?`<h3 style="margin-top:14px">本部门红线 ${RL_TAG}</h3><ul class="s13" style="margin:6px 0 0 18px;padding:0;line-height:1.7">${L.map(r=>`<li>${r.t}</li>`).join('')}</ul><div class="muted s13">按组合关键词识别；更宽泛的说法待环境（AI 判断）。触发后本遍封顶 ${RL_CAP()} 分，不计入掌握。</div>`:''};
