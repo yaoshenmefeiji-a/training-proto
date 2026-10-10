@@ -10,7 +10,8 @@ const CONFIG={
   mentorAfterFails:5,  // X：连续未达标几遍后安排带教（待决策 ②）
   maxTurns:6
 };
-const PASS=CONFIG.masteryLine, MENTOR_X=CONFIG.mentorAfterFails, CAP=CONFIG.hintCap;
+Object.assign(CONFIG,LS.get('config',{})); // 管理后台「带教与认证」保存的配置覆盖默认值
+let PASS=CONFIG.masteryLine, MENTOR_X=CONFIG.mentorAfterFails; const CAP=CONFIG.hintCap;
 const DIMS=[['emp','共情与倾听'],['val','价值表达'],['pol','政策合规'],['ctl','谈判控场']];
 const VARS=[
  {id:'V-087-c3',who:'李总（模拟）',pct:18,open:'你好，我手上有另一家的报价单，同配置价格比你们低 18%。如果不能给到同样的价格，这次就算了，以后也不再考虑续费了。'},
@@ -72,7 +73,7 @@ function renderSess(){const s=S(),v=VARS[s.vi],c=calc(s.turns,s.hint);let h='';
   h+=`<div class="msg"><div class="av" style="background:#9a8f80">客</div><div><div class="who">客户 · ${v.who} · 第 ${i+1} 回合</div><div class="bub">${cust}</div></div></div>`;
   if(!tr)break;const f=fbOf(tr),sc=tAvg(f);
   h+=`<div class="msg me"><div class="av" style="background:#4f7462">我</div><div><div class="who" style="text-align:right">我 · 第 ${i+1} 回合${s.retried[i]?' · 已重练':''}</div><div class="bub">${tr.t}</div></div></div>`;
-  h+=`<div class="coach">${f.red?`<div class="red">⛔ ${f.red}</div>`:''}<div class="t">✦ AI 教练 · 第 ${i+1} 回合 <span class="tag ${sc>=80?'g':sc>=65?'y':'r'}">${sc} 分</span>${tr.k!='g'?`<button class="btn sm" style="margin-left:auto" onclick="retryTurn(${i})">↺ 重练这一回合</button>`:''}</div><ul>${f.good&&!f.red?`<li><span class="up">✓ 做得好：</span>${f.good}</li>`:''}<li><span style="color:var(--o)">△ ${f.red?'正确做法':'可以更好'}：</span>${f.fix}</li><li class="muted s13">引用知识 <a href="#/kb" class="tag g">${f.k}</a> · 本回合维度 ${DIMS.map(([k,n])=>n.slice(0,2)+' '+f.d[k]).join(' / ')}</li></ul></div>`}
+  h+=`<div class="coach">${f.red?`<div class="red">⛔ ${f.red}</div>`:''}<div class="t">✦ AI 教练 · 第 ${i+1} 回合 <span class="tag ${sc>=CONFIG.masteryLine?'g':sc>=CONFIG.midLine?'y':'r'}">${sc} 分</span>${tr.k!='g'?`<button class="btn sm ${sc>=CONFIG.midLine&&!f.red?'ghost':''}" style="margin-left:auto" onclick="retryTurn(${i})">↺ 重练这一回合</button>`:''}</div><ul>${f.good&&!f.red?`<li><span class="up">✓ 做得好：</span>${f.good}</li>`:''}<li><span style="color:var(--o)">△ ${f.red?'正确做法':'可以更好'}：</span>${f.fix}</li><li class="muted s13">引用知识 <a href="#/kb" class="tag g">${f.k}</a> · 本回合维度 ${DIMS.map(([k,n])=>n.slice(0,2)+' '+f.d[k]).join(' / ')}</li></ul></div>`}
  if(s.turns.length>=6)h+=`<div class="sys" style="background:var(--gl);color:var(--g)">6 个回合已完成，输入已关闭。<br><button class="btn p" style="margin-top:6px" onclick="submitAtt()">查看本遍结果 →</button></div>`;
  $('#chat').innerHTML=h;$('#chat').scrollTop=99999;
  $('#sc').textContent=c.score;$('#rd').textContent=Math.min(s.turns.length+1,6)+' / 6';$('#rp').innerHTML=rightPanel(s,c);renderInput(s)}
@@ -138,7 +139,7 @@ window.weak=d=>{toast(`下一遍会针对「${d}」出题，客户会更难缠�
 // ---------- 练习场 / 队列 ----------
 function qData(){const hs=H(),last=hs.slice(-1)[0];return[
  ['S-087','价格异议：客户拿到竞品低价报价单','错题重练','r',`上一遍 ${last.score} 分 · 丢在「${DIMS.slice().sort((a,b)=>(last.dims||{})[a[0]]-(last.dims||{})[b[0]])[0][1]}」· K-5.3.1`,hs.map(h=>h.score),'今天到期','session'],
- ['S-124','续费引导：客户在找降期折扣','间隔复习','y','距上次 3 天 · 记忆曲线提醒',[52,47,60],'今天到期','session'],
+ ['S-124','续费引导 · 客户在犹豫期投诉','间隔复习','y','距上次 3 天 · 记忆曲线提醒',[52,47,60],'今天到期','session'],
  ['S-091','接口鉴权 401：客户生产环境报错','新场景','b','L2 认证必修 · 沙盒实操',[41,55],'今天','sandbox'],
  ['S-062','退款超时：客户要求赔付','巩固','g','已掌握 · 7 天后再巩固一次',[70,76,84,88,90,91,93,90,92,94],'10/17','session'],
  ['S-076','新客户开户：对公发票信息采集','间隔复习','y','文本复述 · 距上次 5 天',[62,70,66,74,63],'明天','retell']]}
@@ -163,7 +164,7 @@ R.scenarios=q=>{let L=SC.filter(c=>(sf.pos=='全部'||c.pos==sf.pos)&&(sf.lv=='�
  const chips=(k,arr,label)=>`<div class="fil" style="margin-right:20px"><span class="muted">${label}</span>${arr.map(v=>`<span class="${sf[k]==v?'on':''}" onclick="sFilter('${k}','${v}')">${v}</span>`).join('')}</div>`;
  return`<div class="page"><div class="hd"><div><div class="eyebrow">第二层 · 场景化</div><h1>场景练习库</h1><div class="sub">每个场景 = 真实问题 · 双向目的 · 错误示例 · 正确示例（必须引用知识库）</div></div><div class="act"><button class="btn" onclick="exportCsv('场景库',[['编号','标题','岗位','难度','组内达标']].concat(SC.map(c=>[c.id,c.t,c.pos,c.lv,c.pass+'%'])))">导出</button><button class="btn p" onclick="toast('新建场景需要管理权限，切到「管理」后可用')">＋ 新建场景</button></div></div>
  <div class="card row" style="padding:10px 14px;margin-bottom:14px;flex-wrap:wrap">${chips('pos',['全部','客服 / 销售','技术 / 英文','管理岗','运维 / 售后'],'岗位')}${chips('lv',['全部','L1','L2','L3'],'难度')}<div class="r">${chips('sort',['推荐','我没练熟','最热'],'排序')}</div></div>
- <div class="muted s13" style="margin-bottom:10px">场景库共 328 个场景 · 当前条件下推荐 ${L.length} 个${q?` · 关键词「${q}」 <a style="color:var(--g)" href="#/scenarios">清除</a>`:''}</div>
+ <div class="muted s13" style="margin-bottom:10px">场景库共 ${libAll().length} 个场景 · 当前条件下推荐 ${L.length} 个${q?` · 关键词「${q}」 <a style="color:var(--g)" href="#/scenarios">清除</a>`:''}</div>
  <div class="grid g3">${L.length?L.map(c=>{const reps=c.id=='S-087'?H().length:c.rep;return`<a class="card sc" href="#/${/沙盒|故障/.test(c.mode)?'sandbox':c.mode=='文本复述'?'retell':'session'}"><div class="row"><span class="mono muted">${c.id}</span><span class="tag ${lvc(c.lv)}">${c.lv}</span>${c.hot?'<span class="tag r">热门</span>':''}<span class="r muted s13">${c.tag}</span></div><h3 style="margin:6px 0">${c.t}</h3><div class="muted s13">${c.pos} · 引用 ${c.k} 条知识 · ${c.n} 人已练</div><div style="margin:8px 0"><span class="tag">${c.mode}</span></div><div class="row s13"><span class="muted">我的进度</span>${reps?`<b>已练 ${reps} 遍</b>`:'<span class="muted">未开始</span>'}<span class="r muted">组内达标 ${c.pass}%</span></div>${bar(c.m,c.m>85?'':'#b48a2c')}<div class="row" style="margin-top:10px"><span class="btn sm p r">${reps?'再练一遍 →':'开始练 →'}</span></div></a>`}).join(''):`<div class="muted">没找到「${q||'当前条件'}」相关的场景，换个说法试试。</div>`}</div></div>`};
 
 // ---------- 文本复述 ----------
@@ -195,7 +196,7 @@ R.cert=()=>`<div class="page"><div class="hd"><div><div class="eyebrow">个人</
  <div class="card"><div class="row"><h3>一线客服 · 入门</h3><span class="ml tag g">已认证</span></div><div style="margin:12px 0">${bar(100)}</div><div class="muted s13">已认证 · 2026-01-12 通过</div><div class="muted s13">已掌握 6/6 个场景 · 100%</div></div>
  <div class="card"><div class="row"><h3>一线客服 · L2 提级</h3><span class="ml tag o">练习中</span></div><div style="margin:12px 0">${bar(72,'#b48a2c')}</div><div>一线客服 · L2 提级 · 已掌握 13/18 个场景 · 72%</div><div class="muted s13">还有 5 个场景没掌握，全部掌握后就能参加认证练习。</div></div>
  <div class="card" style="opacity:.75"><div class="row"><h3>退换货专线</h3><span class="r tag">🔒 未解锁</span></div><div style="margin:12px 0">${bar(0)}</div><div class="muted s13">先完成「一线客服 · L2 提级」认证，这条路径才会打开。</div></div></div>
- <div class="grid g21" style="margin-top:16px"><div class="card"><div class="ch"><h2>L2 提级 · 还没掌握的 5 个场景</h2><span class="r muted s13">其余 13 个已掌握 · 掌握 = 连续 3 遍 ≥ ${PASS}</span></div><table><tr><th>场景</th><th>已练</th><th>最近 3 次</th><th></th></tr>${[['S-087 价格异议：客户拿到竞品低价报价单',H().length+' 遍',H().slice(-3).map(h=>h.score).join(' · '),'session'],['S-124 续费引导：客户在找降期折扣','3 遍','52 · 47 · 60','session'],['S-142 投诉升级：客户要求见主管','2 遍','66 · 71','session'],['S-150 发票冲红：月底跨期开错','1 遍','58','retell'],['S-133 物流理赔：包裹破损索赔','0 遍','—','session']].map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td class="mono">${r[2]}</td><td><a class="btn sm p" href="#/${r[3]}">去练</a></td></tr>`).join('')}</table>
+ <div class="grid g21" style="margin-top:16px"><div class="card"><div class="ch"><h2>L2 提级 · 还没掌握的 5 个场景</h2><span class="r muted s13">其余 13 个已掌握 · 掌握 = 连续 3 遍 ≥ ${PASS}</span></div><table><tr><th>场景</th><th>已练</th><th>最近 3 次</th><th></th></tr>${[['S-087 价格异议：客户拿到竞品低价报价单',H().length+' 遍',H().slice(-3).map(h=>h.score).join(' · '),'session'],['S-124 续费引导 · 客户在犹豫期投诉','3 遍','52 · 47 · 60','session'],['S-142 投诉升级：客户要求见主管','2 遍','66 · 71','session'],['S-150 发票冲红：月底跨期开错','1 遍','58','retell'],['S-133 物流理赔：包裹破损索赔','0 遍','—','session']].map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td class="mono">${r[2]}</td><td><a class="btn sm p" href="#/${r[3]}">去练</a></td></tr>`).join('')}</table>
  <div class="kref" style="margin-top:12px"><div class="row"><b>认证练习</b><span class="r tag">🔒 未解锁</span></div><div class="muted s13">这次的题你之前都没见过，只能用第 1 级提示。练完后{由带教确认}。</div></div></div>
  <div class="card"><div class="ch"><h2>上岗认证证书</h2><span class="ml tag g">有效</span></div><p>陈佳雯 已通过「一线客服 · 入门」认证。</p><div class="meta" style="margin:10px 0"><span>证书编号 <b>C-0348</b></span><span>通过日期 <b>2026-01-12</b></span><span>状态 <b>有效</b></span></div><button class="btn p" onclick="toast('链接已复制。打开的人只能看到证书，看不到你的练习记录。')">复制分享链接</button>
  <div class="kref" style="margin-top:14px;background:#faf9f6"><div class="muted s13">分享页预览（免登录）</div><b>陈佳雯 · 一线客服 · 入门 上岗认证</b><div class="s13">证书编号 C-0348，2026-01-12 通过，当前状态 有效。</div><div class="muted s13">由 {公司名} 培训系统签发。</div></div></div></div></div>`;
@@ -214,11 +215,11 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
 $('#q').addEventListener('keydown',e=>{if(e.key=='Enter'){sf={pos:'全部',lv:'全部',sort:'推荐'};location.hash='#/scenarios?q='+encodeURIComponent(e.target.value.trim())}});
 let role=LS.get('role','emp');
 $('#role').addEventListener('click',e=>{const v=e.target.dataset.v;if(!v)return;role=v;LS.set('role',v);go();toast(v=='adm'?'已切换到管理视角':'已切换到员工视角')});
-const _ov=R.overview;R.overview=()=>{let h=_ov();if(role=='adm')h=h.replace('员工视角 · 陈佳雯','管理视角 · 客服组').replace('早上好，佳雯。','早上好，客服组。').replace(/今日练习队列 5 项.*?熟练<\/div>/,'本周练习 2,417 次 · 待修正 7 条 · 3 个场景引用了已下线的知识</div>');return h};
+const _ov=R.overview;R.overview=()=>{let h=_ov();if(role=='adm')h=h.replace('员工视角 · 陈佳雯','管理视角 · 客服组').replace('早上好，佳雯。','早上好，许敏。').replace(/今日练习队列 5 项.*?熟练<\/div>/,'本周练习 2,417 次 · 待修正 '+fbN()+' 条 · 3 个场景引用了已下线的知识</div>');return h};
 Object.assign(NAMES,{retell:'练习场 › 文本复述 › <b>S-076 新客户开户</b>',cert:'个人 › <b>上岗认证</b>',session:'练习场 › AI 陪练 › <b>S-087 价格异议</b>',review:'练习场 › <b>结果页 · S-087</b>'});
 const NAVMAP={session:'session',review:'review',retell:'retell',cert:'cert'};
 go=function(){const raw=location.hash.slice(2)||'overview';const [r,qs]=raw.split('?');const k=R[r]?r:'overview';const q=qs&&qs.startsWith('q=')?decodeURIComponent(qs.slice(2)):'';
- $('#view').innerHTML=(role=='adm'?'<div class="adminbar">管理视角：数据为客服组全员（36 人）汇总 · 员工个人练习明细仅本人与带教可见</div>':'')+R[k](q);
+ $('#view').innerHTML=(role=='adm'?'<div class="adminbar">管理视角：数据为全公司演示数据汇总 · 员工个人练习明细仅本人与带教可见</div>':'')+R[k](q);
  $('#crumb').innerHTML=NAMES[k].includes('<b>')?NAMES[k]:'工作台 › <b>'+NAMES[k]+'</b>';
  document.querySelectorAll('#nav a').forEach(a=>a.classList.toggle('on',a.dataset.r==(NAVMAP[k]||k)));
  document.querySelectorAll('#role span').forEach(s=>s.classList.toggle('on',s.dataset.v==role));$('#q').value=q;window.scrollTo(0,0);freshLoad=false};
@@ -279,7 +280,10 @@ const BAND_COPY={
   high:{good:'这一回合到位：{点}（{K}）', fix:'保持住，下一回合留意 {下一个要点}'},           // score >= CONFIG.masteryLine
   mid: {good:'方向对了：{点}',            fix:'还差一步：{缺的点}，看看 {K}'},                 // CONFIG.midLine <= score < masteryLine
   low: {good:'你注意到了 {可取之处}',     fix:'这一回合没抓到要点：{问题}。先看 {K} 的第 {N} 步'}, // score < CONFIG.midLine；无可取之处时隐藏「做得好」
-  redline:{card:'停一下：你承诺的「{承诺}」超出了 K-1.2.3 的范围（年采购额 30 万以下仅标准价）。这一遍政策合规不达标。', fix:'在 K-1.2.3 区间内给（30–80 万 92 折），或者告诉客户需要申请审批；先把差价换算成价值（K-5.3.1）。'}
+  redline:{card:'停一下：你承诺的「{承诺}」超出了 K-1.2.3 的范围（年采购额 30 万以下仅标准价）。这一遍政策合规不达标。', fix:'在 K-1.2.3 区间内给（30–80 万 92 折），或者告诉客户需要申请审批；先把差价换算成价值（K-5.3.1）。'},
+  // 部门场景（S-2xx）通用：知识依据是占位编号，没有「第 N 步」
+  lowGeneric:{good:'你注意到了 {可取之处}', fix:'这一回合没抓到要点：{问题}。先看 {K}'},
+  redlineGeneric:{card:'停一下：「{承诺}」这类承诺超出了你的权限，这一遍合规维度不达标。', fix:'先对照 {K} 确认边界，在权限内给方案；超出的部分告诉对方需要走审批或升级。'},
 };
 const NEXT_TIP=['先接住客户情绪，再问他最看重什么','把差价换成能汇报的数字','给出具体金额或工时','客户认了价值后给一条合规降价路径','客户没听懂时放慢、举例、确认','收尾约定具体的下一步和时间','—'];
 const fillT=(t,o)=>t.replace(/\{([^}]+)\}/g,(m,k)=>o[k]!=null?o[k]:m);
@@ -287,7 +291,7 @@ function bandOf(sc){return sc>=CONFIG.masteryLine?'high':sc>=CONFIG.midLine?'mid
 function evalRaw(i,t){const has=re=>re.test(t);
  const f={emp:has(/理解|明白|顾虑|确实|换谁|能理解|不容易|正常/),q:has(/[？?]|吗|哪|什么|方便/),num:has(/\d/)&&has(/万|小时|工时|%|元|天/),sla:has(/SLA|停机|工程师|工时|风险/),
   cite:(t.match(/K-\d\.\d\.\d/g)||[]),path:has(/年付|92\s*折|30\s*万|审批|阶梯|申请/),next:has(/约|周[一二三四五六日]|明天|下周|报价单|试用|回电|再聊|时间/),slow:has(/慢|举个|比如|例子|清楚吗|听懂/)};
- const pm=t.match(/([1-9](\.\d)?|[一二三四五六七八九])\s*折|打折|直接降|便宜\s*\d+/);const red=pm&&!/92\s*折/.test(pm[0])&&!(/申请|审批/.test(t)&&!/直接|就给|可以给/.test(t));
+ const pm=t.match(redlineRe('S-087'));const red=pm&&!/92\s*折/.test(pm[0])&&!(/申请|审批/.test(t)&&!/直接|就给|可以给/.test(t));
  const d={emp:52+(f.emp?28:0)+(f.q?8:0)+(f.slow?6:0),val:48+(f.num?24:0)+(f.sla?12:0)+(f.cite.length?6:0),pol:78+(f.path?12:0)+(f.cite.length?4:0),ctl:52+(f.next?26:0)+(f.q?8:0)+(f.path?6:0)};
  if(red)d.pol=28;Object.keys(d).forEach(k=>d[k]=Math.max(20,Math.min(96,d[k]-(t.length<12?12:0))));
  const goods=[];if(f.emp)goods.push('先接住了客户情绪');if(f.q)goods.push('用提问把话题交回客户');if(f.num)goods.push('给出了能汇报的具体数字');if(f.sla&&!f.num)goods.push('提到了 SLA / 专属工程师的价值');if(f.path&&!red)goods.push('给了区间内的合规降价路径');if(f.next)goods.push('约定了下一步');if(f.slow)goods.push('放慢并确认客户听懂');if(f.cite.length)goods.push('引用了 '+f.cite.join('、'));
