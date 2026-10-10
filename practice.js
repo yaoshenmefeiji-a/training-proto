@@ -10,6 +10,7 @@ const CONFIG={
   mentorAfterFails:5,  // X：连续未达标几遍后安排带教（待决策 ②）
   maxTurns:6
 };
+Object.assign(CONFIG,LS.get('config',{})); // 管理后台「带教与认证」保存的配置覆盖默认值
 const PASS=CONFIG.masteryLine, MENTOR_X=CONFIG.mentorAfterFails, CAP=CONFIG.hintCap;
 const DIMS=[['emp','共情与倾听'],['val','价值表达'],['pol','政策合规'],['ctl','谈判控场']];
 const VARS=[
@@ -163,7 +164,7 @@ R.scenarios=q=>{let L=SC.filter(c=>(sf.pos=='全部'||c.pos==sf.pos)&&(sf.lv=='�
  const chips=(k,arr,label)=>`<div class="fil" style="margin-right:20px"><span class="muted">${label}</span>${arr.map(v=>`<span class="${sf[k]==v?'on':''}" onclick="sFilter('${k}','${v}')">${v}</span>`).join('')}</div>`;
  return`<div class="page"><div class="hd"><div><div class="eyebrow">第二层 · 场景化</div><h1>场景练习库</h1><div class="sub">每个场景 = 真实问题 · 双向目的 · 错误示例 · 正确示例（必须引用知识库）</div></div><div class="act"><button class="btn" onclick="exportCsv('场景库',[['编号','标题','岗位','难度','组内达标']].concat(SC.map(c=>[c.id,c.t,c.pos,c.lv,c.pass+'%'])))">导出</button><button class="btn p" onclick="toast('新建场景需要管理权限，切到「管理」后可用')">＋ 新建场景</button></div></div>
  <div class="card row" style="padding:10px 14px;margin-bottom:14px;flex-wrap:wrap">${chips('pos',['全部','客服 / 销售','技术 / 英文','管理岗','运维 / 售后'],'岗位')}${chips('lv',['全部','L1','L2','L3'],'难度')}<div class="r">${chips('sort',['推荐','我没练熟','最热'],'排序')}</div></div>
- <div class="muted s13" style="margin-bottom:10px">场景库共 328 个场景 · 当前条件下推荐 ${L.length} 个${q?` · 关键词「${q}」 <a style="color:var(--g)" href="#/scenarios">清除</a>`:''}</div>
+ <div class="muted s13" style="margin-bottom:10px">场景库共 ${libAll().length} 个场景 · 当前条件下推荐 ${L.length} 个${q?` · 关键词「${q}」 <a style="color:var(--g)" href="#/scenarios">清除</a>`:''}</div>
  <div class="grid g3">${L.length?L.map(c=>{const reps=c.id=='S-087'?H().length:c.rep;return`<a class="card sc" href="#/${/沙盒|故障/.test(c.mode)?'sandbox':c.mode=='文本复述'?'retell':'session'}"><div class="row"><span class="mono muted">${c.id}</span><span class="tag ${lvc(c.lv)}">${c.lv}</span>${c.hot?'<span class="tag r">热门</span>':''}<span class="r muted s13">${c.tag}</span></div><h3 style="margin:6px 0">${c.t}</h3><div class="muted s13">${c.pos} · 引用 ${c.k} 条知识 · ${c.n} 人已练</div><div style="margin:8px 0"><span class="tag">${c.mode}</span></div><div class="row s13"><span class="muted">我的进度</span>${reps?`<b>已练 ${reps} 遍</b>`:'<span class="muted">未开始</span>'}<span class="r muted">组内达标 ${c.pass}%</span></div>${bar(c.m,c.m>85?'':'#b48a2c')}<div class="row" style="margin-top:10px"><span class="btn sm p r">${reps?'再练一遍 →':'开始练 →'}</span></div></a>`}).join(''):`<div class="muted">没找到「${q||'当前条件'}」相关的场景，换个说法试试。</div>`}</div></div>`};
 
 // ---------- 文本复述 ----------
@@ -218,7 +219,7 @@ const _ov=R.overview;R.overview=()=>{let h=_ov();if(role=='adm')h=h.replace('员
 Object.assign(NAMES,{retell:'练习场 › 文本复述 › <b>S-076 新客户开户</b>',cert:'个人 › <b>上岗认证</b>',session:'练习场 › AI 陪练 › <b>S-087 价格异议</b>',review:'练习场 › <b>结果页 · S-087</b>'});
 const NAVMAP={session:'session',review:'review',retell:'retell',cert:'cert'};
 go=function(){const raw=location.hash.slice(2)||'overview';const [r,qs]=raw.split('?');const k=R[r]?r:'overview';const q=qs&&qs.startsWith('q=')?decodeURIComponent(qs.slice(2)):'';
- $('#view').innerHTML=(role=='adm'?'<div class="adminbar">管理视角：数据为客服组全员（36 人）汇总 · 员工个人练习明细仅本人与带教可见</div>':'')+R[k](q);
+ $('#view').innerHTML=(role=='adm'?'<div class="adminbar">管理视角：数据为全公司演示数据汇总 · 员工个人练习明细仅本人与带教可见</div>':'')+R[k](q);
  $('#crumb').innerHTML=NAMES[k].includes('<b>')?NAMES[k]:'工作台 › <b>'+NAMES[k]+'</b>';
  document.querySelectorAll('#nav a').forEach(a=>a.classList.toggle('on',a.dataset.r==(NAVMAP[k]||k)));
  document.querySelectorAll('#role span').forEach(s=>s.classList.toggle('on',s.dataset.v==role));$('#q').value=q;window.scrollTo(0,0);freshLoad=false};
@@ -279,7 +280,10 @@ const BAND_COPY={
   high:{good:'这一回合到位：{点}（{K}）', fix:'保持住，下一回合留意 {下一个要点}'},           // score >= CONFIG.masteryLine
   mid: {good:'方向对了：{点}',            fix:'还差一步：{缺的点}，看看 {K}'},                 // CONFIG.midLine <= score < masteryLine
   low: {good:'你注意到了 {可取之处}',     fix:'这一回合没抓到要点：{问题}。先看 {K} 的第 {N} 步'}, // score < CONFIG.midLine；无可取之处时隐藏「做得好」
-  redline:{card:'停一下：你承诺的「{承诺}」超出了 K-1.2.3 的范围（年采购额 30 万以下仅标准价）。这一遍政策合规不达标。', fix:'在 K-1.2.3 区间内给（30–80 万 92 折），或者告诉客户需要申请审批；先把差价换算成价值（K-5.3.1）。'}
+  redline:{card:'停一下：你承诺的「{承诺}」超出了 K-1.2.3 的范围（年采购额 30 万以下仅标准价）。这一遍政策合规不达标。', fix:'在 K-1.2.3 区间内给（30–80 万 92 折），或者告诉客户需要申请审批；先把差价换算成价值（K-5.3.1）。'},
+  // 部门场景（S-2xx）通用：知识依据是占位编号，没有「第 N 步」
+  lowGeneric:{good:'你注意到了 {可取之处}', fix:'这一回合没抓到要点：{问题}。先看 {K}'},
+  redlineGeneric:{card:'停一下：「{承诺}」这类承诺超出了你的权限，这一遍合规维度不达标。', fix:'先对照 {K} 确认边界，在权限内给方案；超出的部分告诉对方需要走审批或升级。'},
 };
 const NEXT_TIP=['先接住客户情绪，再问他最看重什么','把差价换成能汇报的数字','给出具体金额或工时','客户认了价值后给一条合规降价路径','客户没听懂时放慢、举例、确认','收尾约定具体的下一步和时间','—'];
 const fillT=(t,o)=>t.replace(/\{([^}]+)\}/g,(m,k)=>o[k]!=null?o[k]:m);

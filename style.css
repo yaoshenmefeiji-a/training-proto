@@ -111,3 +111,21 @@ td .row .bar{flex:1}.row>.bar{flex:1}
 .fil span:not(.muted):hover{background:#f0eee8}
 .sbar .meta{align-items:center}.sbar>div:first-child{flex:1 1 300px}
 .ml{margin-left:auto}
+/* ===== r4 自适应布局 ===== */
+html,body{overflow-x:hidden}
+.page{max-width:none;padding:26px clamp(20px,2.2vw,44px) 40px}
+.main{min-width:0}
+.cards{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+.grid.g3{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.grid.g4{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+@media(min-width:1700px){.grid.g21{grid-template-columns:2.4fr 1fr}.grid.g2{grid-template-columns:1fr 1fr}}
+.sess{grid-template-columns:minmax(0,1fr) clamp(300px,22vw,400px)}
+.sess.norail{grid-template-columns:minmax(0,1fr)}
+.chat .msg,.chat .coach,.chat .sys{max-width:min(860px,80%)}.coach{width:auto}
+.fl{display:block;margin-bottom:10px;font-size:13px;color:var(--m)}
+.fl input,.fl select,.fl textarea{display:block;width:100%;margin-top:4px;border:1px solid var(--line);border-radius:8px;padding:7px 10px;font:inherit;font-size:14px;color:var(--t);background:#fff}
+.atoms{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:4px 12px;margin-top:6px;max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:8px;color:var(--t)}
+td select{border:1px solid var(--line);border-radius:6px;padding:3px 6px;font:inherit;background:#fff}
+#mydept{border:1px solid var(--line);border-radius:6px;padding:2px 4px;font:inherit;font-size:13px}
+.atoms input{display:inline-block!important;width:auto!important;margin:0 6px 0 0!important;vertical-align:middle}
+.heat{grid-template-columns:repeat(auto-fill,minmax(16px,1fr))!important}.heat i{max-width:26px}
