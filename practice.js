@@ -73,7 +73,7 @@ function renderSess(){const s=S(),v=VARS[s.vi],c=calc(s.turns,s.hint);let h='';
   h+=`<div class="msg"><div class="av" style="background:#9a8f80">客</div><div><div class="who">客户 · ${v.who} · 第 ${i+1} 回合</div><div class="bub">${cust}</div></div></div>`;
   if(!tr)break;const f=fbOf(tr),sc=tAvg(f);
   h+=`<div class="msg me"><div class="av" style="background:#4f7462">我</div><div><div class="who" style="text-align:right">我 · 第 ${i+1} 回合${s.retried[i]?' · 已重练':''}</div><div class="bub">${tr.t}</div></div></div>`;
-  h+=`<div class="coach">${f.red?`<div class="red">⛔ ${f.red}</div>`:''}<div class="t">✦ AI 教练 · 第 ${i+1} 回合 <span class="tag ${sc>=CONFIG.masteryLine?'g':sc>=CONFIG.midLine?'y':'r'}">${sc} 分</span>${tr.k!='g'?`<button class="btn sm ${sc>=CONFIG.midLine&&!f.red?'ghost':''}" style="margin-left:auto" onclick="retryTurn(${i})">↺ 重练这一回合</button>`:''}</div><ul>${f.good&&!f.red?`<li><span class="up">✓ 做得好：</span>${f.good}</li>`:''}<li><span style="color:var(--o)">△ ${f.red?'正确做法':'可以更好'}：</span>${f.fix}</li><li class="muted s13">引用知识 <a href="#/kb" class="tag g">${f.k}</a> · 本回合维度 ${DIMS.map(([k,n])=>n.slice(0,2)+' '+f.d[k]).join(' / ')}</li></ul></div>`}
+  h+=`<div class="coach">${f.red?`<div class="red">⛔ ${f.red}</div>`:''}<div class="t">✦ AI 教练 · 第 ${i+1} 回合 <span class="tag ${sc>=CONFIG.masteryLine?'g':sc>=CONFIG.midLine?'y':'r'}">${sc} 分</span>${(tr.k!='g'||sc<CONFIG.masteryLine)?`<button class="btn sm ${sc>=CONFIG.midLine&&!f.red?'ghost':''}" style="margin-left:auto" onclick="retryTurn(${i})">↺ 重练这一回合</button>`:''}</div><ul>${f.good&&!f.red?`<li><span class="up">✓ 做得好：</span>${f.good}</li>`:''}<li><span style="color:var(--o)">△ ${f.red?'正确做法':'可以更好'}：</span>${f.fix}</li><li class="muted s13">引用知识 <a href="#/kb" class="tag g">${f.k}</a> · 本回合维度 ${DIMS.map(([k,n])=>n.slice(0,2)+' '+f.d[k]).join(' / ')}</li></ul></div>`}
  if(s.turns.length>=6)h+=`<div class="sys" style="background:var(--gl);color:var(--g)">6 个回合已完成，输入已关闭。<br><button class="btn p" style="margin-top:6px" onclick="submitAtt()">查看本遍结果 →</button></div>`;
  $('#chat').innerHTML=h;$('#chat').scrollTop=99999;
  $('#sc').textContent=c.score;$('#rd').textContent=Math.min(s.turns.length+1,6)+' / 6';$('#rp').innerHTML=rightPanel(s,c);renderInput(s)}
@@ -215,7 +215,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
 $('#q').addEventListener('keydown',e=>{if(e.key=='Enter'){sf={pos:'全部',lv:'全部',sort:'推荐'};location.hash='#/scenarios?q='+encodeURIComponent(e.target.value.trim())}});
 let role=LS.get('role','emp');
 $('#role').addEventListener('click',e=>{const v=e.target.dataset.v;if(!v)return;role=v;LS.set('role',v);go();toast(v=='adm'?'已切换到管理视角':'已切换到员工视角')});
-const _ov=R.overview;R.overview=()=>{let h=_ov();if(role=='adm')h=h.replace('员工视角 · 陈佳雯','管理视角 · 客服组').replace('早上好，佳雯。','早上好，许敏。').replace(/今日练习队列 5 项.*?熟练<\/div>/,'本周练习 2,417 次 · 待修正 '+fbN()+' 条 · 3 个场景引用了已下线的知识</div>');return h};
+const _ov=R.overview;R.overview=()=>{let h=_ov();if(role=='adm')h=h.replace('员工视角 · 陈佳雯','管理视角 · 客服组').replace('早上好，佳雯。','早上好，许敏。').replace(/今日练习队列 5 项.*?掌握<\/div>/,'本周练习 2,417 次 · 待修正 '+fbN()+' 条 · 3 个场景引用了已下线的知识</div>');return h};
 Object.assign(NAMES,{retell:'练习场 › 文本复述 › <b>S-076 新客户开户</b>',cert:'个人 › <b>上岗认证</b>',session:'练习场 › AI 陪练 › <b>S-087 价格异议</b>',review:'练习场 › <b>结果页 · S-087</b>'});
 const NAVMAP={session:'session',review:'review',retell:'retell',cert:'cert'};
 go=function(){const raw=location.hash.slice(2)||'overview';const [r,qs]=raw.split('?');const k=R[r]?r:'overview';const q=qs&&qs.startsWith('q=')?decodeURIComponent(qs.slice(2)):'';
@@ -307,8 +307,8 @@ function compose(r){const sc=tAvg(r);if(r.red)return{...r,red:fillT(BAND_COPY.re
 const _fbOf3=fbOf;fbOf=function(tr){const f=_fbOf3(tr);return f&&f.raw?compose(f):f};
 window.send=()=>{const s=S(),t=$('#ta').value.trim();if(s.turns.length>=CONFIG.maxTurns){toast('6 个回合已完成，请查看结果');return}if(!t){toast('先写点什么再发送');return}
  const f=evalRaw(s.turns.length,t);s.turns.push({i:s.turns.length,t,k:f.bad?'w':'g',f});save(s);$('#ta').value='';lastPos=0;cnt();renderSess()};
-window.retryTurn=i=>{const s=S();const t=prompt('重练第 '+(i+1)+' 回合，输入新的回答：',(s.turns.find(x=>x.i==i)||{}).t||'');if(!t)return;const f=evalRaw(i,t);
- s.turns=s.turns.map(x=>x.i==i?{i,t,k:f.bad?'w':'g',f}:x);s.retried[i]=1;save(s);renderSess();toast(f.bad?'还没到位，看看新的点评再试':'这一回合重练过了，分数已更新')};
+window.retryTurn=i=>{const s=S();askText('重练第 '+(i+1)+' 回合','输入新的回答，提交后这一回合重新评分。',(s.turns.find(x=>x.i==i)||{}).t||'',t=>{const f=evalRaw(i,t);
+ s.turns=s.turns.map(x=>x.i==i?{i,t,k:f.bad?'w':'g',f}:x);s.retried[i]=1;save(s);renderSess();toast(f.bad?'还没到位，看看新的点评再试':'这一回合重练过了，分数已更新')})};
 // ---- 新的一遍：attempt_id 全局递增（含放弃的遍次），变体避开当前与上一遍；提示状态清零 ----
 newSess=function(avoid){const hs=H(),no=hs.length+1,prev=hs.slice(-1)[0];const cur=LS.get('sess',null);const seq=Math.max(LS.get('seq',hs.length),no-1,cur&&cur.att?parseInt(cur.att.slice(-4)):0)+1;LS.set('seq',seq);
  const bad=new Set([avoid,prev&&VARS.findIndex(v=>v.id==prev.var)]);let vi=(seq+1)%3;for(let k=0;k<3&&bad.has(vi);k++)vi=(vi+1)%3;
@@ -332,7 +332,7 @@ const FBD=[
  {id:'F-229',src:'场景库',lv:'中',st:'待处理',title:'S-091 接口鉴权 401',text:'沙盒步骤缺少 NTP 偏移检查',who:'陈佳雯 · 客服 · 3 人同遇',orig:'「排查路径里没有 NTP 偏移这一步，但真实根因经常是它。」',ai:'在 S-091 排查路径第 3 步前加入「检查 NTP 偏移」，关联 K-4.2.3。',path:'练习 S-091 → 标注 F-229 → 修正场景库 → 回归验证'},
  {id:'F-227',src:'场景库',lv:'中',st:'已采纳',title:'S-124 续费引导',text:'Step 2 漏掉了价保政策分支',who:'吴佳 · 销售 · 1 人同遇',orig:'「老客户续约涨价时，场景没有价保分支。」',ai:'Step 2 增加价保政策分支，引用 K-1.2.4 续约价保护策略。',path:'练习 S-124 → 标注 F-227 → 已修正（v3.1）'}];
 let fbSel=null;
-function fbAll(){const L=LS.get('fb',[]).map(f=>({id:f.id,src:'场景库',lv:'中',st:'待处理',title:'S-087 价格异议 · '+f.type,text:f.text,who:'陈佳雯 · 客服 · 刚刚',meta:`attempt_id ${f.att} · variant_id ${f.var} · 第 ${f.turn} 回合`,orig:'「'+f.text+'」',ai:'AI 正在生成修正建议…（待环境）',path:`练习 S-087（${f.att}）→ 标注 ${f.id} → 待处理`,fresh:1}));
+function fbAll(){const L=LS.get('fb',[]).map(f=>({id:f.id,src:'场景库',lv:'中',st:'待处理',title:(f.sid?f.sid+' '+f.stitle:'S-087 价格异议')+' · '+f.type,text:f.text,who:'陈佳雯 · 客服 · 刚刚',meta:`attempt_id ${f.att} · variant_id ${f.var} · 第 ${f.turn} 回合`,orig:'「'+f.text+'」',ai:'AI 正在生成修正建议…（待环境）',path:`练习 ${f.sid||'S-087'}（${f.att}）→ 标注 ${f.id} → 待处理`,fresh:1}));
  const st=LS.get('fbst',{}),Q=LS.get('queued',[]);let all=L.concat(FBD).map(x=>({...x,st:st[x.id]||x.st}));return all.filter(x=>!Q.includes(x.id)).concat(Q.map(id=>all.find(x=>x.id==id)).filter(Boolean))}
 function renderFB(){const fq=$('.fq');if(!fq)return;const all=fbAll();if(!fbSel||!all.find(x=>x.id==fbSel))fbSel=all[0].id;const c=all.find(x=>x.id==fbSel);
  const stc=s=>s=='已采纳'?'g':s=='已驳回'?'r':s=='已排队'?'b':'';
