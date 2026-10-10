@@ -490,7 +490,9 @@ const fmtN=n=>n.toLocaleString('en-US');
 // 「审批通过后 / 批下来后 …」这一小句（到下一个逗号为止）是合规的先后顺序，先去掉再查「先做」类说法；后面紧跟「补」时不去掉。
 const RL_CANCEL={
  actFirst:/现在就(给你?)?开|马上(就)?(给你?)?开|立刻(给你?)?开|直接(给你?)?开|直接给|先开|先给.{0,6}开|先用着|先(把)?账号.{0,3}(借|给)/,
- deferral:/回头.{0,3}补|事后.{0,3}补|以后再补|往后推|先.{0,4}再补|(审批|审核|批下来)(通过)?(之|以)?后再?补/,
+ deferral:/回头.{0,3}补|事后.{0,3}补|以后再补|往后推|先.{0,4}再补/,
+ // 「审批（通过）后补」本身有歧义（「材料审批后补」也可以是合规说法），只有同句里另有先做类说法时才取消豁免（hotfix S-222）
+ postApprove:/(审批|审核|批下来)(通过)?(之|以)?后再?补/,
  dismissal:/太慢|不用等|先不管|跳过|不用(?!担心|客气|急)/};
 const RL_GATE_RE=/(审批通过|审核通过|审批|审核|批下来|通过)(之后|以后|后)(?!再?补)[^，,。！？!?；;]*/g;
 function rlCancel(t){return String(t).split(/[。！？!?；;]/).some(x=>{const n=normRL(x),g=n.replace(RL_GATE_RE,'');return RL_CANCEL.actFirst.test(g)||RL_CANCEL.deferral.test(n)||RL_CANCEL.dismissal.test(n)})}
