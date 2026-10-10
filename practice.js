@@ -53,6 +53,9 @@ function calc(turns,hint){const sum={emp:0,val:0,pol:0,ctl:0};let red=false;turn
  const d={};DIMS.forEach(([k])=>d[k]=turns.length?Math.round(sum[k]/turns.length):0);if(red)d.pol=Math.min(d.pol,40);
  const score=Math.min(Math.round((d.emp+d.val+d.pol+d.ctl)/4),CAP[hint||0]);return{d,score,red}}
 const tAvg=f=>Math.round((f.d.emp+f.d.val+f.d.pol+f.d.ctl)/4);
+const isCounted=h=>!!h&&!h.nc&&!h.red&&!(h.hint>=3);
+const prevCounted=hs=>hs.slice(0,-1).reverse().find(isCounted)||null;
+const retryPrimary=r=>!isCounted(r)||r.score<CONFIG.masteryLine;
 const passOk=h=>h.score>=PASS&&!(h.hint>=3)&&!h.red;
 const passStreak=hs=>{let n=0;for(const h of hs.slice().reverse()){if(passOk(h))n++;else break}return n};
 const isMastered=hs=>{const k=CONFIG.masteryReps;if(passStreak(hs)<k)return false;const vs=new Set(hs.slice(-k).map(h=>h.var||('v'+h.no)));return vs.size>=CONFIG.masteryVariants};
@@ -67,7 +70,7 @@ window.closeMd=()=>{const m=$('#md');m&&m.remove()};
 // ---------- 会话 ----------
 function renderSess(){const s=S(),v=VARS[s.vi],c=calc(s.turns,s.hint);let h='';
  if(false){h+=`<div class="sys" style="background:var(--gl);color:var(--g)">刚才断开了，已经帮你回到第 ${Math.min(s.turns.length+1,6)} 回合，用时和得分都还在。</div>`}
- h+=`<div class="sys">场景已加载 · S-087 · 第 ${s.no} 次练习 · 变体 ${v.id}<br>这一遍的客户和上一遍不一样，照真实情况来就行。<br>🎯 目标：不破底线，让客户觉得值。建议三步：先共情，再把价格换成价值，最后走合规的降价路径（<a class="tag g" href="#/kb">K-5.3.1</a><a class="tag g" href="#/kb">K-1.2.3</a>）。</div>`+mentorBar();
+ h+=`<div class="sys">场景已加载 · S-087 · 第 ${s.no} 次练习 · 变体 ${v.id}<br>这一遍的客户和上一遍不一样，照真实情况来就行。<br>🎯 目标：不破底线，让客户觉得值。建议三步：先共情，再把价格换成价值，最后走合规的降价路径（<a class="tag g" href="#/kb">K-5.3.1</a>、<a class="tag g" href="#/kb">K-1.2.3</a>）。</div>`+mentorBar();
  if(s.hint>=3)h+=`<div class="sys" style="background:var(--yl);color:#7a5a1e">你看了参考话术，这一遍不计入「连续通过」。</div>`;
  for(let i=0;i<6;i++){const cust=i==0?v.open:T[i].c;const tr=s.turns.find(x=>x.i==i);if(i>s.turns.length)break;
   h+=`<div class="msg"><div class="av" style="background:#9a8f80">客</div><div><div class="who">客户 · ${v.who} · 第 ${i+1} 回合</div><div class="bub">${cust}</div></div></div>`;
@@ -118,15 +121,15 @@ function curve(hs){const n=hs.length,W=620,H=240,x=i=>50+i*(W-80)/Math.max(n-1,1
  let mi=-1;for(let i=CONFIG.masteryReps-1;i<n;i++)if(isMastered(hs.slice(0,i+1))){mi=i;break}
  return`<svg viewBox="0 0 ${W} ${H}" width="100%">${[40,60,80,100].map(v=>`<line x1="50" x2="${W-30}" y1="${y(v)}" y2="${y(v)}" stroke="#eeece6"/><text x="42" y="${y(v)+4}" font-size="12" text-anchor="end" fill="#8a8f8b">${v}</text>`).join('')}
  <line x1="50" x2="${W-30}" y1="${y(PASS)}" y2="${y(PASS)}" stroke="#b48a2c" stroke-dasharray="5 4" stroke-width="1.5"/><rect x="52" y="${y(PASS)-22}" width="150" height="18" rx="4" fill="#f6efd9"/><text x="58" y="${y(PASS)-9}" font-size="12" fill="#8a6a1e">达标线 ${PASS}（当前生效阈值）</text>
- <polyline fill="none" stroke="#2f4a3c" stroke-width="2.5" points="${hs.map((h,i)=>x(i)+','+y(h.score)).join(' ')}"/>${hs.map((h,i)=>`<circle cx="${x(i)}" cy="${y(h.score)}" r="${i==n-1?6:4}" fill="${h.hint>=3?'#fff':i==n-1?'#b5652f':'#2f4a3c'}" stroke="${h.hint>=3?'#b5652f':'none'}" stroke-width="2"/><text x="${x(i)}" y="${y(h.score)+20}" text-anchor="middle" font-size="12" fill="#3a403c">${h.score}</text><text x="${x(i)}" y="${H-6}" text-anchor="middle" font-size="12" fill="#8a8f8b">${i+1}</text>`).join('')}
- ${mi>=0?`<text x="${x(mi)}" y="${y(hs[mi].score)-12}" text-anchor="middle" font-size="12" fill="#2f4a3c">★ 掌握</text>`:''}</svg><div class="row muted s13"><span>横轴：第几次练习 · ● 本遍 · ○ 用过第 3 级提示（不计入连续通过）${mi<0?' · 还没有掌握点（连续 '+CONFIG.masteryReps+' 遍 ≥ '+PASS+'）':''}</span><span class="r">点数 ${n} = 已提交 ${n} 遍</span></div>`}
-R.review=()=>{const hs=H(),r=hs[hs.length-1],p=hs[hs.length-2],vv=VARS.find(v=>v.id==r.var)||VARS[1];
- const diff=p?r.score-p.score:0;const cmp=!p?'':diff>0?`比上一遍 +${diff}（上一遍 ${p.score}）`:diff<0?`比上一遍 ${diff}（上一遍 ${p.score}）`:'和上一遍一样';
+ <polyline fill="none" stroke="#2f4a3c" stroke-width="2.5" points="${hs.map((h,i)=>h.red?null:x(i)+','+y(h.score)).filter(Boolean).join(' ')}"/>${hs.map((h,i)=>`<circle class="${h.red?'rlDot':''}" cx="${x(i)}" cy="${y(h.score)}" r="${i==n-1?6:4}" fill="${h.red?'#b2463b':h.hint>=3?'#fff':i==n-1?'#b5652f':'#2f4a3c'}" stroke="${h.red?(i==n-1?'#7a2a22':'none'):h.hint>=3?'#b5652f':'none'}" stroke-width="2"/><text x="${x(i)}" y="${y(h.score)+20}" text-anchor="middle" font-size="12" fill="#3a403c">${h.score}</text><text x="${x(i)}" y="${H-6}" text-anchor="middle" font-size="12" fill="#8a8f8b">${i+1}</text>`).join('')}
+ ${mi>=0?`<text x="${x(mi)}" y="${y(hs[mi].score)-12}" text-anchor="middle" font-size="12" fill="#2f4a3c">★ 掌握</text>`:''}</svg><div class="row muted s13"><span>横轴：第几次练习 · ● 本遍 · ○ 用过第 3 级提示（不计入连续通过）${hs.some(h=>h.red)?' · <span style="color:#b2463b">●</span> 触发红线（单独标出，不连线、不参与比较）':''}${mi<0?' · 还没有掌握点（连续 '+CONFIG.masteryReps+' 遍 ≥ '+PASS+'）':''}</span><span class="r">点数 ${n} = 已提交 ${n} 遍</span></div>`}
+R.review=()=>{const hs=H(),r=hs[hs.length-1],p=r.red?null:prevCounted(hs),vv=VARS.find(v=>v.id==r.var)||VARS[1];
+ const diff=p?r.score-p.score:0;const cmp=r.red?'这一遍触发红线，不参与和上一遍的比较。':!p?'':diff>0?`比上一遍 +${diff}（上一遍计入的第 ${p.no} 次 ${p.score}）`:diff<0?`比上一遍 ${diff}（上一遍计入的第 ${p.no} 次 ${p.score}）`:`和上一遍一样（上一遍计入的第 ${p.no} 次 ${p.score}）`;
  let streak=passStreak(hs);
  const weakDim=DIMS.slice().sort((a,b)=>r.dims[a[0]]-r.dims[b[0]])[0];
  const status=r.score>=PASS&&r.hint<3?(isMastered(hs)?`这个场景你已经掌握了。1 天后会再出现一次，帮你记牢。`:`这一遍达标了。再连续 ${Math.max(CONFIG.masteryReps-streak,1)} 遍达标，就算掌握这个场景。`):r.score>=PASS?`分数达标，但你看了参考话术，这一遍不计入「连续通过」。`:`还差 ${PASS-r.score} 分达标。主要丢在「${weakDim[1]}」，下面每条都标了该看哪条知识。`;
  const turns=(r.turns||[]).map(([i,k,t,f])=>({i,k,t,f}));const bad=turns.filter(x=>x.k!='g');const left=CONFIG.maxTurns-turns.length;
- return`<div class="page"><div class="hd"><div><div class="eyebrow">结果页 · S-087 价格异议</div><h1>第 ${r.no} 次练习 · ${r.score} 分</h1><div class="sub">${cmp}　${status}</div><div class="meta" style="margin-top:4px"><span>attempt <b>${r.att||'A-087-'+pad(r.no)}</b></span><span>变体 <b>${r.var}</b></span><span>seed <b>${r.seed||'5087-'+pad(r.no)}</b></span><span>提示 <b>${r.hint?'用到第 '+r.hint+' 级':'未使用'}</b></span>${r.red?'<span class="tag r">触发红线 · 政策合规不达标</span>':''}</div></div><div class="act"><a class="btn" href="#/arena">结束</a><button class="btn" onclick="weak('${weakDim[1]}')">针对薄弱点练</button><a class="btn p big" href="#/session">↺ 再练一遍</a></div></div>
+ return`<div class="page"><div class="hd"><div><div class="eyebrow">结果页 · S-087 价格异议</div><h1>第 ${r.no} 次练习 · ${r.score} 分</h1><div class="sub">${cmp}　${status}</div><div class="meta" style="margin-top:4px"><span>attempt <b>${r.att||'A-087-'+pad(r.no)}</b></span><span>变体 <b>${r.var}</b></span><span>seed <b>${r.seed||'5087-'+pad(r.no)}</b></span><span>提示 <b>${r.hint?'用到第 '+r.hint+' 级':'未使用'}</b></span>${r.red?'<span class="tag r">触发红线 · 政策合规不达标</span>':''}</div></div><div class="act"><a class="btn" href="#/arena">结束</a><button class="btn" onclick="weak('${weakDim[1]}')">针对薄弱点练</button><a class="btn ${retryPrimary(r)?'p ':''}big" id="retryBtn" href="#/session">↺ 再练一遍</a></div></div>
  ${mentorBar()}
  <div class="grid g21" style="margin-top:12px"><div class="card"><div class="ch"><h2>进步曲线 · 第几次 × 分数</h2><span class="r muted s13">首遍 ${hs[0].score} → 本遍 ${r.score}</span></div>${curve(hs)}</div>
  <div class="card"><div class="ch"><h2>维度分 vs 上一遍</h2></div>${DIMS.map(([k,n])=>{const a=r.dims[k],b=p&&p.dims?p.dims[k]:null,dd=b==null?'':a-b;return`<div class="dim"><div class="row"><span>${n}</span><span class="r muted s13">${b==null?'':b+' →'}</span><b>${a}</b><span class="${dd<0?'dn':'up'}" style="width:34px;text-align:right">${dd===''?'':dd>0?'+'+dd:dd}</span></div>${bar(a,a<60?'#b2463b':a<75?'#b48a2c':'')}</div>`}).join('')}<div class="muted s13">与对话页右侧「评分」同一套计算</div></div></div>

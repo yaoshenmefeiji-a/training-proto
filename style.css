@@ -137,3 +137,9 @@ td select{border:1px solid var(--line);border-radius:6px;padding:3px 6px;font:in
 .btn.ghost{background:transparent;border-color:var(--line);color:var(--m);box-shadow:none}
 /* r9：窄屏下卡片标题不竖排 */
 .card .ch{flex-wrap:wrap;row-gap:4px}.card .ch h2{white-space:nowrap}
+
+/* r13 F：分配部门等多选标签不在词中间断行 */
+.atoms label{white-space:nowrap}
+.atoms.adg{grid-template-columns:repeat(auto-fill,minmax(118px,1fr));max-height:none}
+.l3lock{display:block;width:100%;font-size:12px;color:#8a8f8b;margin-top:2px}
+.btn.locked{opacity:.45;cursor:not-allowed}
