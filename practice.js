@@ -298,14 +298,14 @@ function bandOf(sc){return sc>=CONFIG.masteryLine?'high':sc>=CONFIG.midLine?'mid
 // r14：折扣叠加——「A 折基础上再给 B 折」「A 折再打 B 折」等；返回员工原话里的第一个折扣（含原空格）
 const DISC_RE='(?<![0-9.一二三四五六七八九])(?:[0-9]+(?:\\.[0-9]+)?|[一二三四五六七八九]{1,2})\\s*折';
 const STACK_RES=[new RegExp('('+DISC_RE+')\\s*(?:的)?(?:价格)?(?:的)?\\s*基础上[^。！？!?；;]{0,10}(?:再|又|额外|叠加)[^。！？!?；;]{0,8}(?:'+DISC_RE+'|折扣|优惠|折)'),new RegExp('('+DISC_RE+')[^。！？!?；;]{0,6}(?:再|又|叠加)(?:打|给|加|让|叠|上)?[^。！？!?；;]{0,4}'+DISC_RE)];
-const STACK_RANG=new RegExp('('+DISC_RE+')[^。！？!?；;]{0,8}(?:再|又)?(?:让|便宜)[^。！？!?；;]{0,3}(?:[0-9一二三四五六七八九两]+\\s*个?\\s*点|点)');
+const STACK_RANG=new RegExp('('+DISC_RE+')[^。！？!?；;]{0,12}(?:再|又)?(?:让|便宜)[^。！？!?；;]{0,3}(?:[0-9一二三四五六七八九两]+\\s*个?\\s*点|点)');
 // 让点：否定（让不了 / 没法再让）或讲明要走申请审批时不算叠加
-const STACK_NEG=/让不了|让不出|没法.{0,3}让|不能.{0,3}让|无法.{0,3}让|不会.{0,3}让|申请|审批/;
-function stackOf(t){t=String(t);for(const re of STACK_RES){const m=t.match(re);if(m)return m[1].trim()}const m=!STACK_NEG.test(t)&&t.match(STACK_RANG);return m?m[1].trim():null}
+const STACK_NEG=t=>/让不了|让不出|没法.{0,3}让|不能.{0,3}让|无法.{0,3}让|不会.{0,3}让/.test(t)||(/申请|审批/.test(t)&&!rlCancel(t));
+function stackOf(t){t=String(t);for(const re of STACK_RES){const m=t.match(re);if(m)return m[1].trim()}const m=!STACK_NEG(t)&&t.match(STACK_RANG);return m?m[1].trim():null}
 function evalRaw(i,t){const has=re=>re.test(t);
  const f={emp:has(/理解|明白|顾虑|确实|换谁|能理解|不容易|正常/),q:has(/[？?]|吗|哪|什么|方便/),num:has(/\d/)&&has(/万|小时|工时|%|元|天/),sla:has(/SLA|停机|工程师|工时|风险/),
   cite:(t.match(/K-\d\.\d\.\d/g)||[]),path:has(/年付|92\s*折|30\s*万|审批|阶梯|申请/),next:has(/约|周[一二三四五六日]|明天|下周|报价单|试用|回电|再聊|时间/),slow:has(/慢|举个|比如|例子|清楚吗|听懂/)};
- const pm=normRL(t).match(redlineRe('S-087'));const red=pm&&!/92\s*折/.test(pm[0])&&!(/申请|审批/.test(t)&&!/直接|就给|可以给/.test(t));
+ const pm=normRL(t).match(redlineRe('S-087'));const red=pm&&!/92\s*折/.test(pm[0])&&!(/申请|审批/.test(t)&&!/直接|就给|可以给/.test(t)&&!rlCancel(t));
  const st=stackOf(t);
  const d={emp:52+(f.emp?28:0)+(f.q?8:0)+(f.slow?6:0),val:48+(f.num?24:0)+(f.sla?12:0)+(f.cite.length?6:0),pol:78+(f.path?12:0)+(f.cite.length?4:0),ctl:52+(f.next?26:0)+(f.q?8:0)+(f.path?6:0)};
  if(red||st)d.pol=28;Object.keys(d).forEach(k=>d[k]=Math.max(20,Math.min(96,d[k]-(t.length<12?12:0))));
@@ -328,7 +328,7 @@ window.retryTurn=i=>{const s=S();askText('重练第 '+(i+1)+' 回合','输入新
 newSess=function(avoid){const hs=H(),no=hs.length+1,prev=hs.slice(-1)[0];const cur=LS.get('sess',null);const seq=Math.max(LS.get('seq',hs.length),no-1,cur&&cur.att?parseInt(cur.att.slice(-4)):0)+1;LS.set('seq',seq);
  const bad=new Set([avoid,prev&&VARS.findIndex(v=>v.id==prev.var)]);let vi=(seq+1)%3;for(let k=0;k<3&&bad.has(vi);k++)vi=(vi+1)%3;
  return{no,vi,att:'A-087-'+pad(seq),seed:'5087-'+pad(seq)+'-'+vi,hint:0,start:Date.now(),el:0,turns:[],retried:{}}};
-window.resetAtt=()=>{if(!confirm('重置这一遍？这一遍记为放弃，不计成绩，会换一个新变体。'))return;clearInterval(timer);const s=S();const n=newSess(s.vi);save(n);lastPos=0;go();toast('已重置 · 新的一遍 '+n.att+' · 变体 '+VARS[n.vi].id)};
+window.resetAtt=()=>{if(!confirm('重置这一遍？这一遍记为放弃，不计成绩，会换一个新变体。'))return;clearInterval(timer);const s=S();save(newSess(s.vi));lastPos=0;go();const c=S();toast('已重置 · 新的一遍 '+c.att+' · 变体 '+VARS[c.vi].id)}; // r14：toast 读渲染后的当前遍次（与页头同源）
 // ---- chip 插在光标处 ----
 let lastPos=null;
 document.addEventListener('selectionchange',()=>{const ta=document.activeElement;if(ta&&ta.id=='ta')lastPos=ta.selectionStart});
