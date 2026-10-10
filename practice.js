@@ -310,7 +310,7 @@ function evalRaw(i,t){const has=re=>re.test(t);
  const exp=['emp','val','val','pol','emp','ctl'][i];const misses=[];if(!NEED[exp][0])misses.push(NEED[exp].slice(1));if(i==4&&!f.slow)misses.push(['客户说没听懂，你没有放慢举例','K-5.3.1',3]);
  if(t.length<12)misses.push(['回答太短，客户会觉得被敷衍','K-5.3.1',1]);
  return{raw:1,i,d,goods,misses,red:st?st:red?pm[0]:null,stack:st?1:0,k:st?'K-1.2.5':red?'K-1.2.3':(misses[0]?misses[0][1]:(exp=='pol'?'K-1.2.3':'K-5.3.1')),bad:!!red||!!st||misses.length>0}}
-function compose(r){const sc=tAvg(r);if(r.red&&r.stack)return{...r,red:fillT(BAND_COPY.stack.card,{'折扣':r.red}),good:'',fix:BAND_COPY.stack.fix,k:'K-1.2.5'};if(r.red)return{...r,red:fillT(BAND_COPY.redline.card,{'承诺':r.red}),good:'',fix:BAND_COPY.redline.fix,k:'K-1.2.3'};
+function compose(r){const sc=tAvg(r);if(r.red&&r.stack)return{...r,red:fillT(BAND_COPY.stack.card,{'折扣':String(r.red).replace(/\s+/g,'')}),good:'',fix:BAND_COPY.stack.fix,k:'K-1.2.5'};if(r.red)return{...r,red:fillT(BAND_COPY.redline.card,{'承诺':r.red}),good:'',fix:BAND_COPY.redline.fix,k:'K-1.2.3'};
  const b=bandOf(sc),c=BAND_COPY[b];let m=r.misses[0];if(!m&&b!='high'){const w=Object.keys(r.d).sort((x,y)=>r.d[x]-r.d[y])[0];m={emp:['没有先回应客户情绪','K-5.3.1',1],val:['没有把差价换成具体数字','K-5.3.1',2],pol:['没有给合规的降价路径','K-1.2.3',1],ctl:['没有约定下一步','K-5.3.1',3]}[w]}const K=m?m[1]:r.k;const pts=r.goods.slice(0,2).join('、');
  if(b=='high')return{...r,good:fillT(c.good,{'点':pts||'回应完整','K':r.k}),fix:fillT(c.fix,{'下一个要点':NEXT_TIP[r.i+1]})};
  if(b=='mid')return{...r,good:fillT(c.good,{'点':pts||'接住了客户的话'}),fix:fillT(c.fix,{'缺的点':m?m[0].replace(/^没有/,''):NEXT_TIP[r.i+1],'K':K})};
