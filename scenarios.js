@@ -453,3 +453,28 @@ function headTotal(){return Object.values(DDATA).reduce((a,v)=>a+v[0],0)}
 // 反馈计数：基线 7 条待修正 + 本机新标注（角标、总览、反馈看板同源）
 function fbNew(){try{return JSON.parse(localStorage.getItem('tp_fb')||'[]').length}catch(e){return 0}}
 function fbN(){return 7+fbNew()}
+
+// ===== r9：旧场景接入通用引擎（S-087 / S-091 / S-076 仍走原有专用页面） =====
+const LEGACY_SC=[
+ {id:'S-124',dept:'销售',title:'续费引导 · 客户在犹豫期投诉',mode:'AI 陪练',old:1,desc:LEGACY_DESC['S-124'],role:'续费客户 · 周女士（模拟）',opener:'我上周刚续的费，现在越想越觉得不划算。你们不是有犹豫期吗？要么给我打个折，要么我就退了。',theirGoal:'拿到折扣，否则退费。',ourGoal:'按续费政策说明犹豫期规则和可选方案，不随口承诺折扣。',krefs:['K-1.2.3','K-5.3.1'],steps:[]},
+ {id:'S-115',dept:'销售',title:'产品演示：英文客户线上 Demo',mode:'AI 陪练',old:1,desc:LEGACY_DESC['S-115'],role:'海外客户 · Mark（模拟）',opener:'Sorry to cut in — before you go on, how is this different from what we already use? We only have 30 minutes.',theirGoal:'快速判断值不值得继续看。',ourGoal:'讲清核心价值；答不上的问题如实记下并约跟进。',krefs:['K-6.1.2'],steps:[]},
+ {id:'S-062',dept:'售后',title:'退款超时：客户要求赔付',mode:'AI 陪练',old:1,desc:LEGACY_DESC['S-062'],role:'客户 · 孙先生（模拟）',opener:'退款说好 3 个工作日到账，现在都第 6 天了！你们耽误我这么久，必须额外赔我钱。',theirGoal:'尽快到账并拿到额外赔偿。',ourGoal:'先道歉、查清进度，再按退款规则说明能赔什么、不能赔什么。',krefs:['K-2.3.1','K-5.3.1'],steps:[]},
+ {id:'S-132',dept:'运维',title:'数据迁移中断：客户催促恢复',mode:'沙盒实操',old:1,desc:LEGACY_DESC['S-132'],krefs:['K-4.2.3'],steps:['确认数据完整性（源端与目标端行数、校验和）','定位中断原因（日志、限流、磁盘、网络）','给出恢复步骤（断点续传或回滚）','给客户回复预计恢复时间和下一次同步时间']},
+ {id:'S-108',dept:'运维',title:'线上支付闪断：订单状态不一致',mode:'沙盒实操',old:1,desc:LEGACY_DESC['S-108'],krefs:['K-4.2.3'],steps:['圈定受影响时间窗口和订单范围','对账：已扣款未成功的订单清单','安排修复（补单或退款）并复核','通知售后统一对外口径']},
+ {id:'S-045',dept:'管理层',title:'团队绩效分歧：部门协作决策',mode:'文本复述',old:1,desc:LEGACY_DESC['S-045'],krefs:['K-7.1.1'],steps:['写清分配决定','说明依据（贡献、事实、数据）','回应两组各自的顾虑','说明后续怎么避免同类分歧']}];
+// 旧场景已有的演示遍数（S-087 用自己的历史）
+function legacyBase(id){const c=(typeof SC!='undefined')&&SC.find(x=>x.id==id);return c&&id!='S-087'?c.rep:0}
+// ===== r9：角色体系唯一来源 =====
+// 每个部门只能选自己的角色；「培训管理员」是跨部门角色（见演示说明）
+const DEPT_ROLES={产品:['产品经理','产品组长','带教'],研发:['后端工程师','研发组长','带教'],运维:['值班工程师','运维组长','带教'],销售:['客户经理','销售主管','带教'],售后:['一线客服','客服组长','带教'],采购:['采购专员','采购经理','带教'],管理层:['部门负责人'],业务线:['业务线负责人']};
+const CROSS_ROLES=['培训管理员'];
+const rolesOf=d=>(DEPT_ROLES[d]||[]).concat(CROSS_ROLES);
+// 「我的团队」范围：带教 / 组长类 → 本部门；部门负责人 → 全部部门；业务线负责人 → 所辖部门
+const TEAM_SCOPE=role=>/带教|组长|主管|经理$/.test(role)&&!/^产品经理$|^客户经理$/.test(role)?'dept':role=='部门负责人'?'all':role=='业务线负责人'?'line':null;
+const LINE_DEPTS=['产品','研发','运维','销售','售后'];
+// ===== r9：本周练习次数唯一来源（总览 / 后台同用） =====
+function weeklyPractice(){const B=window.__DBASE||null;return Object.entries(DDATA).reduce((a,[k,v])=>a+Math.round((B?B[k]:v[0])*v[1]/10),0)}
+const fmtN=n=>n.toLocaleString('en-US');
+
+// 红线匹配前统一写法：您→你、咱们→我们、去空白、全角数字→半角（只改匹配方式，不加业务词）
+function normRL(t){return String(t).replace(/您/g,'你').replace(/咱们/g,'我们').replace(/\s+/g,'').replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248))}

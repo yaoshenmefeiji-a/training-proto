@@ -164,7 +164,7 @@ R.scenarios=q=>{let L=SC.filter(c=>(sf.pos=='全部'||c.pos==sf.pos)&&(sf.lv=='�
  const chips=(k,arr,label)=>`<div class="fil" style="margin-right:20px"><span class="muted">${label}</span>${arr.map(v=>`<span class="${sf[k]==v?'on':''}" onclick="sFilter('${k}','${v}')">${v}</span>`).join('')}</div>`;
  return`<div class="page"><div class="hd"><div><div class="eyebrow">第二层 · 场景化</div><h1>场景练习库</h1><div class="sub">每个场景 = 真实问题 · 双向目的 · 错误示例 · 正确示例（必须引用知识库）</div></div><div class="act"><button class="btn" onclick="exportCsv('场景库',[['编号','标题','岗位','难度','组内达标']].concat(SC.map(c=>[c.id,c.t,c.pos,c.lv,c.pass+'%'])))">导出</button><button class="btn p" onclick="toast('新建场景需要管理权限，切到「管理」后可用')">＋ 新建场景</button></div></div>
  <div class="card row" style="padding:10px 14px;margin-bottom:14px;flex-wrap:wrap">${chips('pos',['全部','客服 / 销售','技术 / 英文','管理岗','运维 / 售后'],'岗位')}${chips('lv',['全部','L1','L2','L3'],'难度')}<div class="r">${chips('sort',['推荐','我没练熟','最热'],'排序')}</div></div>
- <div class="muted s13" style="margin-bottom:10px">场景库共 ${libAll().length} 个场景 · 当前条件下推荐 ${L.length} 个${q?` · 关键词「${q}」 <a style="color:var(--g)" href="#/scenarios">清除</a>`:''}</div>
+ <div class="muted s13" style="margin-bottom:10px">场景库共 ${typeof libAll=="function"?libAll().length:SC.length} 个场景 · 当前条件下推荐 ${L.length} 个${q?` · 关键词「${q}」 <a style="color:var(--g)" href="#/scenarios">清除</a>`:''}</div>
  <div class="grid g3">${L.length?L.map(c=>{const reps=c.id=='S-087'?H().length:c.rep;return`<a class="card sc" href="#/${/沙盒|故障/.test(c.mode)?'sandbox':c.mode=='文本复述'?'retell':'session'}"><div class="row"><span class="mono muted">${c.id}</span><span class="tag ${lvc(c.lv)}">${c.lv}</span>${c.hot?'<span class="tag r">热门</span>':''}<span class="r muted s13">${c.tag}</span></div><h3 style="margin:6px 0">${c.t}</h3><div class="muted s13">${c.pos} · 引用 ${c.k} 条知识 · ${c.n} 人已练</div><div style="margin:8px 0"><span class="tag">${c.mode}</span></div><div class="row s13"><span class="muted">我的进度</span>${reps?`<b>已练 ${reps} 遍</b>`:'<span class="muted">未开始</span>'}<span class="r muted">组内达标 ${c.pass}%</span></div>${bar(c.m,c.m>85?'':'#b48a2c')}<div class="row" style="margin-top:10px"><span class="btn sm p r">${reps?'再练一遍 →':'开始练 →'}</span></div></a>`}).join(''):`<div class="muted">没找到「${q||'当前条件'}」相关的场景，换个说法试试。</div>`}</div></div>`};
 
 // ---------- 文本复述 ----------
@@ -215,7 +215,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
 $('#q').addEventListener('keydown',e=>{if(e.key=='Enter'){sf={pos:'全部',lv:'全部',sort:'推荐'};location.hash='#/scenarios?q='+encodeURIComponent(e.target.value.trim())}});
 let role=LS.get('role','emp');
 $('#role').addEventListener('click',e=>{const v=e.target.dataset.v;if(!v)return;role=v;LS.set('role',v);go();toast(v=='adm'?'已切换到管理视角':'已切换到员工视角')});
-const _ov=R.overview;R.overview=()=>{let h=_ov();if(role=='adm')h=h.replace('员工视角 · 陈佳雯','管理视角 · 客服组').replace('早上好，佳雯。','早上好，许敏。').replace(/今日练习队列 5 项.*?掌握<\/div>/,'本周练习 2,417 次 · 待修正 '+fbN()+' 条 · 3 个场景引用了已下线的知识</div>');return h};
+const _ov=R.overview;R.overview=()=>{let h=_ov();if(role=='adm')h=h.replace('员工视角 · 陈佳雯','管理视角 · 客服组').replace('早上好，佳雯。','早上好，许敏。').replace(/今日练习队列 5 项.*?掌握<\/div>/,'本周练习 '+fmtN(weeklyPractice())+' 次 · 待修正 '+fbN()+' 条 · 3 个场景引用了已下线的知识</div>');return h};
 Object.assign(NAMES,{retell:'练习场 › 文本复述 › <b>S-076 新客户开户</b>',cert:'个人 › <b>上岗认证</b>',session:'练习场 › AI 陪练 › <b>S-087 价格异议</b>',review:'练习场 › <b>结果页 · S-087</b>'});
 const NAVMAP={session:'session',review:'review',retell:'retell',cert:'cert'};
 go=function(){const raw=location.hash.slice(2)||'overview';const [r,qs]=raw.split('?');const k=R[r]?r:'overview';const q=qs&&qs.startsWith('q=')?decodeURIComponent(qs.slice(2)):'';
@@ -291,7 +291,7 @@ function bandOf(sc){return sc>=CONFIG.masteryLine?'high':sc>=CONFIG.midLine?'mid
 function evalRaw(i,t){const has=re=>re.test(t);
  const f={emp:has(/理解|明白|顾虑|确实|换谁|能理解|不容易|正常/),q:has(/[？?]|吗|哪|什么|方便/),num:has(/\d/)&&has(/万|小时|工时|%|元|天/),sla:has(/SLA|停机|工程师|工时|风险/),
   cite:(t.match(/K-\d\.\d\.\d/g)||[]),path:has(/年付|92\s*折|30\s*万|审批|阶梯|申请/),next:has(/约|周[一二三四五六日]|明天|下周|报价单|试用|回电|再聊|时间/),slow:has(/慢|举个|比如|例子|清楚吗|听懂/)};
- const pm=t.match(redlineRe('S-087'));const red=pm&&!/92\s*折/.test(pm[0])&&!(/申请|审批/.test(t)&&!/直接|就给|可以给/.test(t));
+ const pm=normRL(t).match(redlineRe('S-087'));const red=pm&&!/92\s*折/.test(pm[0])&&!(/申请|审批/.test(t)&&!/直接|就给|可以给/.test(t));
  const d={emp:52+(f.emp?28:0)+(f.q?8:0)+(f.slow?6:0),val:48+(f.num?24:0)+(f.sla?12:0)+(f.cite.length?6:0),pol:78+(f.path?12:0)+(f.cite.length?4:0),ctl:52+(f.next?26:0)+(f.q?8:0)+(f.path?6:0)};
  if(red)d.pol=28;Object.keys(d).forEach(k=>d[k]=Math.max(20,Math.min(96,d[k]-(t.length<12?12:0))));
  const goods=[];if(f.emp)goods.push('先接住了客户情绪');if(f.q)goods.push('用提问把话题交回客户');if(f.num)goods.push('给出了能汇报的具体数字');if(f.sla&&!f.num)goods.push('提到了 SLA / 专属工程师的价值');if(f.path&&!red)goods.push('给了区间内的合规降价路径');if(f.next)goods.push('约定了下一步');if(f.slow)goods.push('放慢并确认客户听懂');if(f.cite.length)goods.push('引用了 '+f.cite.join('、'));

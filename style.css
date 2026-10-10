@@ -135,3 +135,5 @@ td select{border:1px solid var(--line);border-radius:6px;padding:3px 6px;font:in
 /* r6：对话从上往下排，不留空隙；中档以上「重练这一回合」用次要样式 */
 .chat{justify-content:flex-start!important}.chat>*{flex:0 0 auto!important;margin-top:0!important;margin-bottom:0!important}
 .btn.ghost{background:transparent;border-color:var(--line);color:var(--m);box-shadow:none}
+/* r9：窄屏下卡片标题不竖排 */
+.card .ch{flex-wrap:wrap;row-gap:4px}.card .ch h2{white-space:nowrap}
