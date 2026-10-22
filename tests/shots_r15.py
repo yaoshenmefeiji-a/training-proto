@@ -13,7 +13,7 @@ with sync_playwright() as p:
         f=O+'/r15-01_reset_counter_1280.png'; pg.screenshot(path=f); out.append((f,'0-turn reset 第 %d 次 -> 1-turn reset 第 %d 次'%(a,b)))
     with page(p,'#/session') as pg:
         send087(pg,'给您打8折'); pg.evaluate("setTab('sco')"); pg.wait_for_timeout(200)
-        f=O+'/r15-02_s087_capped_40_1280.png'; pg.screenshot(path=f); out.append((f,'header score '+pg.inner_text('#sc')))
+        f=O+'/r15-02_s087_red_capped_39_1280.png'; pg.screenshot(path=f); out.append((f,'header score '+pg.inner_text('#sc')))
     with page(p,'#/arena') as pg:
         pg.evaluate(FIX087,10); pg.evaluate("location.hash='#/session'"); pg.reload(); pg.wait_for_timeout(400)
         pg.locator('.sys.mentor').scroll_into_view_if_needed()

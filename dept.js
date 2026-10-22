@@ -343,11 +343,10 @@ go();
 const RL_CAP=()=>CONFIG.midLine-25; // 默认 40，明显低于任何合规回答
 const _gEval12=gEval;gEval=function(sc,i,t){const r=_gEval12(sc,i,t);if(r.red){const q=rlQuote(t,redlineRe(sc.id,sc.dept));if(q)r.red=q;r.d.pol=RL_CAP()}else if(r.red)r.d.pol=RL_CAP();return r};
 const _evalRaw12=evalRaw;evalRaw=function(i,t){const r=_evalRaw12(i,t);if(r.red){if(!r.stack){const q=rlQuote(t,redlineRe('S-087'));if(q)r.red=q}r.d.pol=RL_CAP()}return r};
-// r15：触发红线的一遍，综合分就是 RL_CAP（默认 40），和红线回合的单回合分一致。原来只取 min(平均分, 40)：
-// 回答太短（< 12 字）时其他维度先各扣 12 分，平均分会掉到 40 以下（「给您打8折」= (40+36+40+40)/4 = 39）。提示上限仍然生效（取两者较小的）。
-const rlTotal=hint=>Math.min(RL_CAP(),CAP[hint||0]);
-const _gCalc12=gCalc;gCalc=function(turns,hint){const c=_gCalc12(turns,hint);if(c.red&&c.score!=null)c.score=rlTotal(hint);return c};
-const _calc12=calc;calc=function(turns,hint){const c=_calc12(turns,hint);if(c.red)c.score=rlTotal(hint);return c};
+// r15（决策变更）：触发红线的一遍，综合分封顶 RL_CAP（默认 40）：取 min(原分, 40)，原分低于 40 时保留原分，不往上抬。
+// 例：「给您打8折」不到 12 字，其他维度先各扣 12 分，(40+36+40+40)/4 = 39 → 保持 39。提示上限照常在 calc / gCalc 里生效。
+const _gCalc12=gCalc;gCalc=function(turns,hint){const c=_gCalc12(turns,hint);if(c.red&&c.score!=null)c.score=Math.min(c.score,RL_CAP());return c};
+const _calc12=calc;calc=function(turns,hint){const c=_calc12(turns,hint);if(c.red)c.score=Math.min(c.score,RL_CAP());return c};
 // 2 复述重合度：原文与作答都去掉标点 / 分隔符再比（原来步骤用「|」拼接、界面显示用「 · 」，跨分隔符的 6 字片段全部算不重合，整段照抄只有约 51%）
 const normOv=x=>String(x).replace(/[\s\p{P}\p{S}]/gu,'');
 overlapRatio=function(t,sc){const src=normOv(srcOf(sc).split('|').join(''))+'|'+srcOf(sc).split('|').map(normOv).join('|'),x=normOv(t);if(x.length<8)return 0;let hit=0,n=0;for(let i=0;i+6<=x.length;i++){n++;if(src.includes(x.slice(i,i+6)))hit++}return n?hit/n:0};

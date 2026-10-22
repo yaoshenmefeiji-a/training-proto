@@ -1,4 +1,4 @@
-"""R15 suite: items 1-5 (postApprove removed, reset attempt counter, S-087 red total = 40, 底价 not praised as a path, mentor handoff + AC-108)."""
+"""R15 suite: items 1-5 (postApprove removed, reset attempt counter, red-line total capped at min(original, 40), 底价 not praised as a path, mentor handoff + AC-108)."""
 import os, sys, re, json; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from lib import Suite, page, ROOT
 
@@ -46,33 +46,54 @@ def item2(s,p):
         s.check('2 S-222 second 0-turn reset: unchanged', NO(pg)==2, NO(pg))
         s.check('2 no page errors (S-222)', not pg.errs, pg.errs)
 
+# raw (uncapped) attempt score = what calc/gCalc compute before the red-line cap: dims averaged per turn, pol <= 40 on red, hint cap applied
+RAW087="(()=>{const s=S();const t=s.turns.map(fbOf);const d={};DIMS.forEach(([k])=>d[k]=Math.round(t.reduce((a,f)=>a+f.d[k],0)/t.length));d.pol=Math.min(d.pol,40);return Math.min(Math.round((d.emp+d.val+d.pol+d.ctl)/4),CAP[s.hint||0])})()"
+RAWD="(()=>{const s=dS('S-222');const t=s.turns.map(x=>x.f);const d={};DIMS.forEach(([k])=>d[k]=Math.round(t.reduce((a,f)=>a+f.d[k],0)/t.length));d.pol=Math.min(d.pol,40);return Math.min(Math.round((d.emp+d.val+d.pol+d.ctl)/4),CAP[s.hint||0])})()"
 def item3(s,p):
+    # Decision (2026-10-22 23:38): red-line attempt total is CAPPED at 40 = min(original, 40); an original below 40 stays as is.
     with page(p,'#/session') as pg:
         send087(pg,'给您打8折')
         r=pg.evaluate("(()=>{const s=S(),c=calc(s.turns,s.hint);return [c.score,c.red,tAvg(fbOf(s.turns[0])),document.querySelector('#sc').textContent]})()")
-        s.check('3 S-087 「给您打8折」 total = 40 (was 39)', r[0]==40 and r[1], r)
-        s.check('3 S-087 header shows 40', r[3]=='40', r)
-        s.check('3 S-087 red round score = 40', r[2]==40, r)
+        raw=pg.evaluate(RAW087)
+        s.check('3 S-087 「给您打8折」 total = 39 (capped, not raised)', r[0]==39 and r[1] and raw==39, (r,raw))
+        s.check('3 S-087 header shows 39', r[3]=='39', r)
+        s.check('3 S-087 red round score still = 40', r[2]==40, r)
         z=pg.evaluate("[...document.querySelectorAll('#rp .row b')].filter(b=>b.textContent=='综合').map(b=>b.nextElementSibling.textContent)")
-        s.check('3 S-087 right panel 综合 = 40', z and all(x=='40' for x in z), z)
+        s.check('3 S-087 right panel 综合 = 39', z and all(x=='39' for x in z), z)
         pg.evaluate("submitAtt()"); pg.wait_for_timeout(300)
         h=pg.evaluate("H().slice(-1)[0]")
-        s.check('3 S-087 submitted record score 40, red, nc', h['score']==40 and h['red'] and h['nc'], (h['score'],h['red'],h.get('nc')))
-        # other caps intact (synthetic turns via calc)
-        q=pg.evaluate("""(()=>{const mk=t=>({i:0,t,k:'g',f:evalRaw(0,t)});const red=evalRaw(3,'给您打8折'),good={raw:1,i:0,d:{emp:96,val:96,pol:96,ctl:96},goods:[],misses:[],red:null,k:'K-5.3.1',bad:false};
-          const T=f=>({i:0,t:'x',k:'g',f});return{
+        s.check('3 S-087 submitted record score 39, red, nc', h['score']==39 and h['red'] and h['nc'], (h['score'],h['red'],h.get('nc')))
+        s.check('3 no page errors (S-087 low)', not pg.errs, pg.errs)
+    with page(p,'#/session') as pg:
+        send087(pg,'理解您的顾虑，这样吧我直接给您打 8 折，明天把报价单发您可以吗？')
+        raw=pg.evaluate(RAW087); sc=pg.evaluate("calc(S().turns,S().hint).score"); hd=pg.inner_text('#sc')
+        s.check('3 S-087 red attempt with original > 40 is capped to 40', raw>40 and sc==40 and hd=='40', (raw,sc,hd))
+    with page(p,'#/session') as pg:
+        q=pg.evaluate("""(()=>{const red=evalRaw(3,'给您打8折'),good={raw:1,i:0,d:{emp:96,val:96,pol:96,ctl:96},goods:[],misses:[],red:null,k:'K-5.3.1',bad:false};
+          const T=f=>({i:0,t:'x',k:'g',f});const low={raw:1,i:0,d:{emp:30,val:28,pol:40,ctl:30},goods:[],misses:[],red:'8 折',k:'K-1.2.3',bad:true};return{
           longRed:calc([T(good),T(good),T(evalRaw(3,'理解您的顾虑，这样吧我直接给您打 8 折，明天把报价单发您可以吗？'))],0).score,
-          shortRedHint3:calc([T(red)],3).score, shortRedHint2:calc([T(red)],2).score,
+          shortRedHint3:calc([T(red)],3).score, lowRed:calc([T(low)],0).score,
           noRedHint2:calc([T(good)],2).score, noRedHint3:calc([T(good)],3).score, noRed:calc([T(good)],0).score,
           stack:calc([T(evalRaw(3,'92 折再便宜 3 个点'))],0).score, nine:calc([T(evalRaw(3,'9 折没问题。'))],0).score}})()""")
-        s.check('3 long red reply with strong other turns: total 40', q['longRed']==40, q)
-        s.check('3 red + hint caps: still 40', q['shortRedHint3']==40 and q['shortRedHint2']==40, q)
+        s.check('3 S-087 strong turns + red turn: capped to 40', q['longRed']==40, q)
+        s.check('3 S-087 low red attempt keeps original (synthetic 32, short 8折 + hint 3 = 39)', q['lowRed']==32 and q['shortRedHint3']==39, q)
         s.check('3 hint caps unchanged without red (90 / 80 / 96)', q['noRedHint2']==90 and q['noRedHint3']==80 and q['noRed']==96, q)
-        s.check('3 K-1.2.5 stack + other short discount also total 40', q['stack']==40 and q['nine']==40, q)
-        d=pg.evaluate("""(()=>{const sc=getSc('S-222');const f=gEval(sc,0,'先开了');const ok=gEval(sc,0,'理解你着急，我现在就帮你提权限申请，审批通过后马上开通，下午 3 点前同步进度。');return [gCalc([{t:'先开了',f}],0).score,gCalc([{t:'x',f:ok}],0).score,gCalc([],0).score]})()""")
-        s.check('3 dept red total also exactly 40 (S-222 「先开了」)', d[0]==40, d)
-        s.check('3 dept compliant total unaffected (>40), empty = null', d[1]>40 and d[2] is None, d)
+        s.check('3 short stack / short discount keep originals <= 40', 0<q['stack']<=40 and q['nine']<=40, q)
+        d=pg.evaluate("""(()=>{const sc=getSc('S-222');const F=t=>({t,f:gEval(sc,0,t)});const low={t:'x',f:{d:{emp:30,val:30,pol:40,ctl:30},red:'先开了'}};
+          return {one:gCalc([F('先开了')],0).score,low:gCalc([low],0).score,ok:gCalc([F('理解你着急，我现在就帮你提权限申请，审批通过后马上开通，下午 3 点前同步进度。')],0).score,empty:gCalc([],0).score}})()""")
+        s.check('3 dept S-222 「先开了」 original 43 capped to 40', d['one']==40, d)
+        s.check('3 dept low red attempt keeps original (synthetic 33)', d['low']==33, d)
+        s.check('3 dept compliant total unaffected (>40), empty = null', d['ok']>40 and d['empty'] is None, d)
         s.check('3 no page errors', not pg.errs, pg.errs)
+    with page(p,'#/play?id=S-222') as pg:
+        sendD(pg,'先开了'); sendD(pg,'先开了')   # repeated short red reply: repeat penalty pushes the original below 40
+        raw=pg.evaluate(RAWD); c=pg.evaluate("gCalc(dS('S-222').turns,dS('S-222').hint)"); hdr=pg.evaluate("(document.querySelector('.sbar').innerText.match(/综合评分\\s*(\\d+)/)||[])[1]")
+        s.check('3 dept S-222 low red attempt (UI) keeps original < 40', raw<40 and c['score']==raw and c['red'] and hdr==str(raw), (raw,c['score'],hdr))
+        pg.click('button:has-text("重置这一遍")'); pg.wait_for_timeout(300)
+        sendD(pg,'理解你着急，按流程太慢了，我直接给你开，明天下午 3 点同步进度可以吗？')
+        raw=pg.evaluate(RAWD); c=pg.evaluate("gCalc(dS('S-222').turns,dS('S-222').hint)")
+        s.check('3 dept S-222 red attempt with original > 40 (UI) capped to 40', raw>40 and c['score']==40 and c['red'], (raw,c['score']))
+        s.check('3 no page errors (S-222)', not pg.errs, pg.errs)
 
 def item4(s,p):
     with page(p,'#/session') as pg:
