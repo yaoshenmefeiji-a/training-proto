@@ -35,13 +35,23 @@ with sync_playwright() as pw:
         ok=ok and sim['conn'] is True and sim['exit'] is True and all(v is None for k,v in sim.items() if k not in ('conn','exit'))
         ok=ok and pg.locator('#v2grade [data-check=exit_ip] .v2sim:text-is("模拟")').count()==1
         check(where+'：成绩单「真连接测试通过」「检测页出口 IP 一致」行内有「模拟」，其他行没有；grade.json simulated: true',ok,got)
+    import re
+    BANNED=re.compile(r'大陆|绕过中国|bypass|mainland',re.I)
+    def no_banned(where):
+        html=pg.content(); m=BANNED.search(html)
+        check(where+'：页面 HTML 里没有「大陆」类字样',m is None, html[max(0,m.start()-60):m.end()+60] if m else '')
     # 1 入口
     pg.goto(BASE+'/index.html#/arena'); pg.wait_for_timeout(400)
     check('练习场里有入口卡片「v2ray 节点配置实操」',pg.locator('#v2entry:has-text("v2ray 节点配置实操")').count()==1)
+    no_banned('练习场入口')
     pg.locator('#v2entry').scroll_into_view_if_needed(); pg.evaluate('window.scrollBy(0,-120)'); shot(pg,'01-entry-arena.png')
     # 2 空客户端
     pg.click('#v2entry a.q'); pg.wait_for_timeout(300); seed(100036)
     check('空客户端：服务器列表为空',pg.locator('.v2empty').count()==1)
+    no_banned('空客户端 + 任务（要求全局）')
+    check('状态栏路由只有 全局 / 规则分流 / 直连',pg.eval_on_selector_all('.v2status label:has-text("路由") option','els=>els.map(e=>e.textContent)')==['全局','规则分流','直连'])
+    menu('设置','路由设置'); no_banned('路由设置弹窗'); pg.click('.v2btns .v2b:has-text("取消")')
+    pg.click('#demoTag'); no_banned('演示说明'); pg.click('#demoTag')
     shot(pg,'02-empty-client.png')
     # 3 添加 VMess 服务器（填好）
     n=node(); check('题目是 VMess + ws + tls',n['proto']=='vmess' and n['net']=='ws' and n['tls'])
@@ -60,6 +70,7 @@ with sync_playwright() as pw:
     sh=pg.evaluate('''()=>{const s=JSON.parse(localStorage.tp_v2),n=V2E.genNode(s.seed);return [1,2,3].map(()=>JSON.stringify(V2E.grade(s.cfg,n)))}''')
     check('浏览器里同一配置判 3 次一致',len(set(sh))==1)
     sim_tags_ok('满分')
+    no_banned('满分成绩单 + 检测页')
     shot(pg,'05-grade-full-score.png','#v2grade')
     # 4 重新练习：导入（先坏链接，再改错 UUID 第 3 段），不开系统代理
     pg.click('#v2grade button:has-text("重新练习")'); pg.wait_for_timeout(200); seed(100008); n=node()
@@ -77,10 +88,12 @@ with sync_playwright() as pw:
     it={i['key']:i for i in g['items']}
     check('有扣分的成绩单：UUID 第 3 段 / 系统代理 / DNS 各扣在对的项',g['total']==47 and it['sysproxy']['score']==0 and it['dns']['score']==0 and any('UUID 第 3 段填错' in (f['cause'] or '') for f in it['node']['evidence']['fields']),g['total'])
     sim_tags_ok('有扣分')
+    no_banned('有扣分成绩单（要求规则分流）')
     shot(pg,'06-grade-with-deductions.png','#v2grade')
     # 5 什么都不配直接交
     pg.click('#v2grade button:has-text("重新练习")'); pg.wait_for_timeout(200); pg.click('button:has-text("✓ 提交")'); pg.wait_for_timeout(300)
     g=json.loads(pg.locator('#v2json').inner_text()); check('什么都不配直接交：0 分，不报错（S-203）',g['total']==0 and not errs, errs)
+    no_banned('白卷成绩单')
     shot(pg,'08-grade-blank-zero.png','#v2grade')
     # 6 用分享链接导入（Shadowsocks）→ 满分
     pg.click('#v2grade button:has-text("重新练习")'); pg.wait_for_timeout(200); seed(100003); n=node()

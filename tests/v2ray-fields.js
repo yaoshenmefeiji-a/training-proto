@@ -11,7 +11,7 @@ const F=L.fields;tbl(['字段','VMess','VLESS','Shadowsocks','可选值 / 说明
  [F.enc,'✓（'+E.VMESS_SEC.join(' / ')+'）','✓（文本，应为 none）','✓（'+E.SS_METHODS.join(' / ')+'）',''],[F.net,'✓','✓','—',E.NETS.join(' / ')],[F.host,'✓','✓','—','ws 用'],[F.path,'✓','✓','—','ws 用'],[F.tls,'✓','✓','—','（空）/ tls']]);
 tbl(['弹窗','标题'],Object.entries(L.dialogTitle).map(([k,v])=>[E.PROTO_NAME[k],v]));
 p('## 3 设置');p('');
-tbl(['位置','字段','可选值 / 默认'],[[L.paramTitle,L.socksPort,'默认 10808'],[L.paramTitle,L.httpPort,'默认 10809'],[L.paramTitle,L.dnsLabel,Object.values(E.DNS_MODE).join(' / ')+'（练习初始：'+E.DNS_MODE.local+'）'],[L.routingTitle,'域名策略',Object.values(E.ROUTING).join(' / ')+'（初始：'+E.ROUTING.bypass+'）'],[L.importTitle,'粘贴框',L.importHint]]);
+tbl(['位置','字段','可选值 / 默认'],[[L.paramTitle,L.socksPort,'默认 10808'],[L.paramTitle,L.httpPort,'默认 10809'],[L.paramTitle,L.dnsLabel,Object.values(E.DNS_MODE).join(' / ')+'（练习初始：'+E.DNS_MODE.local+'）'],[L.routingTitle,'域名策略',Object.values(E.ROUTING).join(' / ')+'（初始：'+E.ROUTING.rule+'）'],[L.importTitle,'粘贴框',L.importHint]]);
 p('## 4 检测页检测项');p('');tbl(['key','检测项','行内标签','是否计分'],E.V2_CHECKS.map(c=>[c.key,c.name,c.key=='exit_ip'?'「'+L.simTag+'」':'—',c.key=='webrtc_leak'?'不计分（只展示）':c.key=='dns_leak'?'对应判分项「DNS 走代理」':'对应判分项「检测页出口 IP 一致」']));
 tbl(['key','检测页说明文字'],Object.entries(E.V2_CHECK_NOTE));
 p('## 5 判分项（合计 100）');p('');tbl(['key','判分项','分值','行内标签'],E.V2_ITEMS.map(i=>[i.key,i.name,i.max,i.simulated?'「'+L.simTag+'」（grade.json 里 "simulated": true）':'—']));

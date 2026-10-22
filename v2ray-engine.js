@@ -26,7 +26,7 @@ const V2_LABELS={
  simTag:'模拟',simTagTitle:'这一项是网页模拟出来的结果，不是真实节点或真实检测页测出来的'
 };
 const SYS_PROXY={clear:'清除系统代理',auto:'自动配置系统代理',keep:'不改变系统代理'};
-const ROUTING={global:'全局',bypass:'绕过大陆',direct:'直连'};
+const ROUTING={global:'全局',rule:'规则分流',direct:'直连'};
 const DNS_MODE={remote:'远程 DNS（走代理）',local:'本机 DNS（直连）'};
 const PROTO_NAME={vmess:'VMess',vless:'VLESS',ss:'Shadowsocks'};
 const NETS=['tcp','ws'];
@@ -92,9 +92,9 @@ const V2_DEDUCT={
  no_server:'还没有活动服务器，这一项没法判断。先把任务给的节点设为活动服务器。',
  sys_clear:'系统代理是「清除系统代理」，浏览器不经过 v2rayN，直接上网。改成「自动配置系统代理」。',
  sys_keep:'系统代理是「不改变系统代理」，练习机原来没设代理，浏览器还是直连。改成「自动配置系统代理」。',
- route_direct:'路由选了「直连」，所有流量都不经过代理。按任务要求改成「全局」或「绕过大陆」。',
- route_bypass_cn:'检测页部署在国内（{host}），「绕过大陆」会让它直连，出口 IP 变回本机。任务要求「全局」。',
- route_global_need_bypass:'任务要求「绕过大陆」，你选了「全局」，国内网站也会绕道代理，变慢还占用节点流量。',
+ route_direct:'路由选了「直连」，所有流量都不经过代理。按任务要求重新选路由模式。',
+ route_rule_need_global:'任务要求「全局」，你选了「规则分流」。检测页（{host}）在分流规则的直连名单里，访问它不走代理，出口 IP 变回本机。按任务要求重新选路由模式。',
+ route_global_need_rule:'任务要求「规则分流」，你选了「全局」，本该直连的网站也会绕道代理，变慢还占用节点流量。按任务要求重新选路由模式。',
  dns_local:'DNS 选了「本机 DNS（直连）」，查域名的请求绕开了代理，直接发给本地运营商，你访问过哪些网站对方都看得到。在参数设置里改成「远程 DNS（走代理）」。',
  port_conflict:'本地 SOCKS 端口和 HTTP 端口都是 {port}，v2ray 核心起不来。把两个端口改成不一样的，比如默认的 10808 和 10809。',
  port_range:'本地监听端口 {port} 不在 1–65535 之间，v2ray 核心起不来。',
@@ -141,11 +141,12 @@ function genNode(seed,opt){const r=rng(seed);opt=opt||{};
   alias:'练习节点-'+nn,
   exitIp:'198.51.100.'+(10+Math.floor(r()*200)),
   realIp:'203.0.113.'+(10+Math.floor(r()*200)),
-  routeReq:opt.routeReq||(r()<0.5?'global':'bypass'),
+  routeReq:opt.routeReq||(r()<0.5?'global':'rule'),
   baseMs:60+Math.floor(r()*180)};
  if(net=='ws'){node.path='/'+pick(r,WORDS)+'-'+hex(r,4);node.host=useDomain?addr:`cdn${nn}.lab-proxy.example`}
- node.checkHost=node.routeReq=='global'?'check.lab-cn.example':'check.lab-intl.example';
- node.checkDomestic=node.routeReq=='global';
+ // 要求「全局」的题：检测页在分流规则的直连名单里（选「规则分流」就会直连）；要求「规则分流」的题：检测页不在名单里
+ node.checkHost=node.routeReq=='global'?'check-a.lab.example':'check-b.lab.example';
+ node.checkOnDirectList=node.routeReq=='global';
  return node}
 
 // ---------------------------------------------------------------------------
@@ -194,9 +195,9 @@ function parseLinks(text){const lines=String(text==null?'':text).split(/\r?\n/).
  lines.forEach((l,i)=>{if(!l)return;let r;try{r=parseOne(l,i+1)}catch(e){r={error:fill(IMPORT_ERR.scheme,{line:i+1})}}if(r.server)out.servers.push(r.server);else out.errors.push(r.error)});return out}
 
 // ---------------------------------------------------------------------------
-// 客户端状态（练习初始状态：没有服务器、清除系统代理、绕过大陆、本机 DNS）
+// 客户端状态（练习初始状态：没有服务器、清除系统代理、规则分流、本机 DNS）
 // ---------------------------------------------------------------------------
-function blankConfig(){return{servers:[],active:-1,sysProxy:'clear',routing:'bypass',dns:'local',socks:10808,http:10809}}
+function blankConfig(){return{servers:[],active:-1,sysProxy:'clear',routing:'rule',dns:'local',socks:10808,http:10809}}
 function newServer(proto){return{proto,addr:'',port:'',id:'',aid:proto=='vmess'?0:null,enc:proto=='vmess'?'auto':proto=='vless'?'none':SS_METHODS[1],net:'tcp',host:'',path:'',tls:'',alias:''}}
 const norm=v=>String(v==null?'':v).trim();
 const lc=v=>norm(v).toLowerCase();
@@ -236,7 +237,7 @@ function trafficPath(cfg,n,conn){
  if(!conn.ok)return{proxied:false,why:'conn'};
  if(cfg.sysProxy!='auto')return{proxied:false,why:'sys'};
  if(cfg.routing=='direct')return{proxied:false,why:'route_direct'};
- if(cfg.routing=='bypass'&&n.checkDomestic)return{proxied:false,why:'route_bypass_cn'};
+ if(cfg.routing=='rule'&&n.checkOnDirectList)return{proxied:false,why:'route_rule_need_global'};
  return{proxied:true}}
 
 // 检测页（模拟）：按当前配置推出来，同一配置结果一样
@@ -279,7 +280,7 @@ function grade(cfg,n){cfg=cfg||blankConfig();const servers=Array.isArray(cfg.ser
  g=gate('routing',10);const rEv={mode:ROUTING[cfg.routing],required:ROUTING[n.routeReq]};
  if(g)add('routing',0,g,rEv);
  else if(cfg.routing==n.routeReq)add('routing',10,[],rEv);
- else{const code=cfg.routing=='direct'?'route_direct':cfg.routing=='bypass'?'route_bypass_cn':'route_global_need_bypass';add('routing',0,[{code,text:fill(V2_DEDUCT[code],{host:n.checkHost}),points:10}],rEv)}
+ else{const code=cfg.routing=='direct'?'route_direct':cfg.routing=='rule'?'route_rule_need_global':'route_global_need_rule';add('routing',0,[{code,text:fill(V2_DEDUCT[code],{host:n.checkHost}),points:10}],rEv)}
  // 5 DNS
  g=gate('dns',10);
  if(g)add('dns',0,g,{mode:DNS_MODE[cfg.dns]});

@@ -5,7 +5,7 @@ const {E,FIXTURES,NODE_WS,ref,mut,clone}=require('./v2ray-fixtures.js');
 const sha=o=>crypto.createHash('sha256').update(JSON.stringify(o)).digest('hex');
 const item=(g,k)=>g.items.find(i=>i.key==k);
 const allText=g=>g.items.flatMap(i=>i.key=='node'?(i.evidence.fields||[]).map(f=>f.cause).filter(Boolean):i.deductions.map(d=>d.text));
-const VARIANTS=[];for(const proto of ['vmess','vless','ss'])for(const net of (proto=='ss'?['tcp']:['tcp','ws']))for(const tls of (proto=='ss'?[false]:[false,true]))for(const routeReq of ['global','bypass'])VARIANTS.push({proto,net,tls,routeReq});
+const VARIANTS=[];for(const proto of ['vmess','vless','ss'])for(const net of (proto=='ss'?['tcp']:['tcp','ws']))for(const tls of (proto=='ss'?[false]:[false,true]))for(const routeReq of ['global','rule'])VARIANTS.push({proto,net,tls,routeReq});
 
 test('分值：7 项满分合计 100，「节点参数正确」各字段合计 35',()=>{
  assert.equal(E.V2_ITEMS.reduce((a,x)=>a+x.max,0),100);
@@ -90,7 +90,9 @@ const COPY_2026_10_22={
  "no_server": "还没有活动服务器，这一项没法判断。先把任务给的节点设为活动服务器。",
  "sys_clear": "系统代理是「清除系统代理」，浏览器不经过 v2rayN，直接上网。改成「自动配置系统代理」。",
  "sys_keep": "系统代理是「不改变系统代理」，练习机原来没设代理，浏览器还是直连。改成「自动配置系统代理」。",
- "route_direct": "路由选了「直连」，所有流量都不经过代理。按任务要求改成「全局」或「绕过大陆」。",
+ "route_direct": "路由选了「直连」，所有流量都不经过代理。按任务要求重新选路由模式。",
+ "route_rule_need_global": "任务要求「全局」，你选了「规则分流」。检测页（{host}）在分流规则的直连名单里，访问它不走代理，出口 IP 变回本机。按任务要求重新选路由模式。",
+ "route_global_need_rule": "任务要求「规则分流」，你选了「全局」，本该直连的网站也会绕道代理，变慢还占用节点流量。按任务要求重新选路由模式。",
  "dns_local": "DNS 选了「本机 DNS（直连）」，查域名的请求绕开了代理，直接发给本地运营商，你访问过哪些网站对方都看得到。在参数设置里改成「远程 DNS（走代理）」。",
  "port_conflict": "本地 SOCKS 端口和 HTTP 端口都是 {port}，v2ray 核心起不来。把两个端口改成不一样的，比如默认的 10808 和 10809。"
 };
@@ -108,3 +110,19 @@ test('定稿文案填空后的整句（成绩单上显示的样子）',()=>{
  assert.ok(txt('active-none').includes(COPY_2026_10_22.no_server));
  const n=E.genNode(5,{proto:'ss'});const c=ref(n);c.servers[0].id='wrong';assert.ok(allText(E.grade(c,n)).includes(COPY_2026_10_22.pwd));
  const n2=E.genNode(6,{proto:'vless'});const c2=ref(n2);c2.servers[0].id='';assert.ok(allText(E.grade(c2,n2)).includes(COPY_2026_10_22.uuid_empty));c2.servers[0].id='abc';assert.ok(allText(E.grade(c2,n2)).includes(COPY_2026_10_22.uuid_format))});
+
+// 合规：「大陆」类字样不能出现在任何用户看得到的地方（引擎常量 + 所有判分 / 检测页输出 + 分享链接）
+const BANNED=/大陆|绕过中国|bypass|mainland/i;
+test('引擎常量、判分结果、检测页、分享链接里都没有「大陆」类字样，路由只有 全局 / 规则分流 / 直连',()=>{
+ assert.deepEqual(Object.values(E.ROUTING),['全局','规则分流','直连']);
+ const consts={L:E.V2_LABELS,S:E.SYS_PROXY,R:E.ROUTING,D:E.DNS_MODE,C:E.V2_CHECKS,I:E.V2_ITEMS,F:E.V2_NODE_FIELDS,X:E.V2_DEDUCT,N:E.V2_CHECK_NOTE,M:E.IMPORT_ERR};
+ assert.doesNotMatch(JSON.stringify(consts),BANNED);
+ const outs=[];for(const f of FIXTURES){const c=f.cfg(f.node);outs.push(E.grade(c,f.node),E.checkPage(c,f.node),f.node)}
+ for(let s=1;s<=60;s++){const n=E.genNode(s);for(const routing of Object.keys(E.ROUTING)){const c=ref(n);c.routing=routing;outs.push(E.grade(c,n),E.checkPage(c,n),E.shareLink(n))}}
+ outs.push(E.grade(E.blankConfig(),NODE_WS),E.blankConfig());
+ for(const o of outs)assert.doesNotMatch(JSON.stringify(o),BANNED)});
+test('路由：要求「全局」的题选「规则分流」→ 检测页直连；要求「规则分流」的题两种都能出去，但选「全局」扣路由分',()=>{
+ const {NODE_RULE}=require('./v2ray-fixtures.js');
+ let c=mut(NODE_WS,c=>{c.routing='rule'});assert.equal(E.checkPage(c,NODE_WS).match,false);
+ c=mut(NODE_RULE,c=>{c.routing='global'});assert.equal(E.checkPage(c,NODE_RULE).match,true);assert.equal(E.grade(c,NODE_RULE).items.find(i=>i.key=='routing').score,0);
+ c=ref(NODE_RULE);assert.equal(E.grade(c,NODE_RULE).total,100)});
