@@ -1,4 +1,6 @@
 // ===== 练习引擎：状态持久化（localStorage），PRD 5.4.0/5.4.1/5.4.3 对齐 =====
+// r15：重置时已提交过至少 1 个回合的遍次计数（决策 ⑨：这类遍次也算一遍，计入「第 N 次」）
+const abN=id=>{try{const v=localStorage.getItem('tp_ab_'+id);return v?+JSON.parse(v)||0:0}catch(e){return 0}};
 const LS={get:(k,d)=>{try{const v=localStorage.getItem('tp_'+k);return v?JSON.parse(v):d}catch(e){return d}},set:(k,v)=>localStorage.setItem('tp_'+k,JSON.stringify(v)),del:k=>localStorage.removeItem('tp_'+k)};
 // ===== CONFIG：所有阈值的唯一来源（T 待决策 ①，PRD §7.3 提议 T=80） =====
 const CONFIG={
@@ -7,7 +9,8 @@ const CONFIG={
   masteryReps:3,       // N：连续 N 遍达标算掌握（待决策 ①）
   masteryVariants:2,   // 这 N 遍至少覆盖的不同变体数（待决策 ①）
   hintCap:[100,100,90,80], // 用到第 0/1/2/3 级提示时本遍得分上限（待决策 ①）
-  mentorAfterFails:5,  // X：连续未达标几遍后安排带教（待决策 ②）
+  mentorAfterFails:5,  // X：连续未达标几遍后安排带教（决策 ②）
+  mentorAfterTotal:10, // Y：累计练了几遍还没掌握就安排带教（决策 ②）；转带教后照样可以接着练，不设上限（AC-108）
   maxTurns:6
 };
 Object.assign(CONFIG,LS.get('config',{})); // 管理后台「带教与认证」保存的配置覆盖默认值
@@ -44,7 +47,7 @@ function seedHist(){return[{no:1,score:42},{no:2,score:55},{no:3,score:51},{no:4
  {no:7,score:74,var:'V-087-c4',seed:'5087-0007',hint:1,dims:{emp:84,val:72,pol:78,ctl:62},turns:[[0,'g','我理解，比价很正常。对方报价里包含哪些服务，我们一起对比下？'],[1,'g','先不谈折扣，我帮您算笔账：SLA 差 0.45%，一年少停机约 39 小时，约 78 万风险敞口。'],[2,'g','专属工程师一年能省约 300 工时，折合约 12 万。'],[3,'w','价格这块确实是统一的。'],[4,'g','好，我慢一点讲，举个例子……这样清楚吗？'],[5,'w','好的，有问题随时联系。']]}]}
 const H=()=>LS.get('hist',null)||(LS.set('hist',seedHist()),LS.get('hist'));
 const pad=n=>String(n).padStart(4,'0');
-function newSess(vIdx){const no=H().length+1;const prev=H().slice(-1)[0];let vi=vIdx!=null?vIdx:(no+1)%3;if(prev&&VARS[vi].id==prev.var)vi=(vi+1)%3;
+function newSess(vIdx){const no=H().length+abN('S-087')+1;const prev=H().slice(-1)[0];let vi=vIdx!=null?vIdx:(no+1)%3;if(prev&&VARS[vi].id==prev.var)vi=(vi+1)%3;
  return{no,vi,att:'A-087-'+pad(no),seed:'5087-'+pad(no)+'-'+vi,hint:0,start:Date.now(),el:0,turns:[],retried:{}}}
 const S=()=>LS.get('sess',null)||(LS.set('sess',newSess()),LS.get('sess'));
 const save=s=>LS.set('sess',s);
@@ -63,7 +66,10 @@ const isMastered=hs=>{const k=CONFIG.masteryReps;if(passStreak(hs)<k)return fals
 const consecFail=()=>{let n=0;for(const h of H().slice().reverse()){if(h.score<PASS)n++;else break}return n};
 const fmt=ms=>{const s=Math.floor(ms/1000);return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')};
 const elapsed=s=>s.el+(Date.now()-s.start);
-const mentorBar=()=>consecFail()>=MENTOR_X?`<div class="sys" style="background:var(--yl);color:#7a5a1e">🧑‍🏫 ${COPY_MENTOR}<span class="muted s13">（最近 ${consecFail()} 遍未达标）</span></div>`:'';
+// r15：带教触发（决策 ②）：连续 X 遍未达标，或累计练了 Y 遍还没掌握；n = 已练遍数（含提交过回合的重置遍）
+const mentorWhy=(hs,n)=>{let k=0;for(const h of hs.slice().reverse()){if(h.score<CONFIG.masteryLine)k++;else break}if(k>=CONFIG.mentorAfterFails)return '最近 '+k+' 遍未达标';if(n>=CONFIG.mentorAfterTotal&&!isMastered(hs))return '已练 '+n+' 遍还没掌握';return ''};
+const mentorHTML=(why,pre)=>why?`<div class="sys mentor" style="background:var(--yl);color:#7a5a1e">🧑‍🏫 ${COPY_MENTOR}<span class="muted s13">（${pre||''}${why}）</span><br><span class="mgo">${COPY_MENTOR_GO}</span></div>`:'';
+const mentorBar=()=>mentorHTML(mentorWhy(H(),H().length+abN('S-087')));
 let freshLoad=true;const RECOVER=(()=>{try{const x=JSON.parse(localStorage.getItem('tp_sess'));return !!(x&&x.turns&&x.turns.length)}catch(e){return false}})();let recoverShown=false;
 function modal(html){document.body.insertAdjacentHTML('beforeend',`<div class="modal" id="md" onclick="if(event.target==this)this.remove()"><div>${html}</div></div>`)}
 window.closeMd=()=>{const m=$('#md');m&&m.remove()};
@@ -150,11 +156,11 @@ function qData(){const hs=H(),last=hs.slice(-1)[0];return[
 let qf='全部';window.qFilter=f=>{qf=f;go()};
 const qHref=q=>q[7]=='session'&&q[0]!='S-087'?'play?id='+q[0]:q[7];
 queue=function(){return qData().filter(q=>qf=='全部'||q[2]==qf).map(q=>`<a class="q" href="#/${qHref(q)}"><span class="tag ${q[3]}" style="min-width:64px;text-align:center">${q[2]}</span><div style="flex:1;min-width:0"><div class="row"><span class="mono muted">${q[0]}</span><b>${q[1]}</b></div><div class="why muted">${q[4]}</div></div><div style="width:210px"><div class="s13 muted">已练 ${q[5].length} 遍 · 下一次是第 ${q[5].length+1} 次</div><div class="dots">${q[5].slice(-10).map(v=>`<i class="${v>=PASS?'d':'x'}" title="${v}"></i>`).join('')}</div></div><div class="s13 muted" style="width:64px;text-align:right">${q[6]}</div><span class="btn sm p">练 →</span></a>`)};
-R.arena=()=>{const hs=H(),s=LS.get('sess',null),no=hs.length+1,l=hs.slice(-1)[0];const qs=queue();
+R.arena=()=>{const hs=H(),s=LS.get('sess',null),no=hs.length+abN('S-087')+1,l=hs.slice(-1)[0];const qs=queue();
  return`<div class="page"><div class="hd"><div><div class="eyebrow">第三层 · 练习执行</div><h1>练习场</h1><div class="sub">把每天真实遇到的问题，在这里练到会为止。</div></div><div class="act"><a class="btn" href="#/review">上一遍结果</a><a class="btn" href="#/cert">上岗认证</a><a class="btn" href="#/scenarios">挑选场景</a></div></div>
  <div class="heroCard"><div style="flex:1"><div class="eyebrow" style="color:#b9d1c3">下一遍 · 错题重练</div><h1 style="font-size:24px">S-087 价格异议：客户拿到竞品低价报价单</h1><div class="sub">第 ${s?s.no:no} 次练习${s?' · 进行中，已到第 '+Math.min(s.turns.length+1,6)+' 回合':''} · 上一遍 ${l.score} 分 · 最好成绩 ${bestOf(hs)} · 预计 6 分钟</div><div class="quote">一次不会练 10 次，10 次不会练 50 次。每一回合都有教练点评。</div></div>
  <div class="stat"><b>12 天</b>连续练习</div><div class="stat"><b>${qs.length} 项</b>今日队列</div><div class="stat"><b>${hs.length} 遍</b>S-087 已练</div><a class="btn big" href="#/session">▶ ${s?'继续这一遍':'开始下一遍'}</a></div>
- ${consecFail()>=MENTOR_X?`<div style="margin-top:12px">${mentorBar()}</div>`:''}
+ ${mentorBar()?`<div style="margin-top:12px">${mentorBar()}</div>`:''}
  <div class="grid g21" style="margin-top:16px"><div class="card"><div class="ch"><h2>今日练习队列</h2><span class="muted s13">按遗忘曲线 + 错题优先排序</span><div class="r fil">${['全部','错题重练','间隔复习','新场景','巩固'].map(f=>`<span class="${qf==f?'on':''}" onclick="qFilter('${f}')">${f}</span>`).join('')}</div></div>${qs.join('')||'<div class="muted">今天没有要练的了。想多练可以去场景库挑一个。</div>'}</div>
  <div><div class="card"><div class="ch"><h2>连续练习</h2><span class="ml tag g">🔥 12 天</span></div><div class="heat" style="grid-template-columns:repeat(9,1fr)">${Array.from({length:45},(_,i)=>`<i class="a${i>=33?[3,4,2,3][i%4]:[0,1,2,0,3,1,0,2,4,1][i%10]}"></i>`).join('')}</div><div class="muted s13" style="margin-top:8px">近 45 天 · 最长 21 天</div></div>
  <div class="card" style="margin-top:16px"><div class="ch"><h2>AI 教练建议</h2></div><div class="list s13"><div>你在 3 个场景都是客户一施压就让价，先看 <a style="color:var(--g);font-weight:600" href="#/kb">K-5.3.1 共情三段式</a>。</div><div>技术类场景通过率偏低，本周安排 2 遍 S-091 沙盒。</div><div>S-062 已稳定 90+，转为每周巩固 1 次。</div></div></div></div></div>
@@ -280,6 +286,9 @@ go();
 // ===== R3 =====
 // 带教通知（中性文案；{带教姓名}/{时限} 待决策 ②/Q5，见 prd-diff.md）
 var COPY_MENTOR='已为你安排带教，带教老师会先看你最近几遍的回放，再来找你。';
+// r15：转带教后照样可以接着练（AC-108）；文案原样，不改字
+var COPY_MENTOR_GO='这期间你可以接着练，每多练一遍，带教老师能看到的回放就多一遍。';
+window.askMentor=()=>toast(COPY_MENTOR+COPY_MENTOR_GO);
 // ---- 点评分档文案（文案同学只改这里）。档位门槛读 CONFIG.masteryLine / CONFIG.midLine ----
 const BAND_COPY={
   high:{good:'这一回合到位：{点}（{K}）', fix:'保持住，下一回合留意 {下一个要点}'},           // score >= CONFIG.masteryLine
@@ -302,9 +311,11 @@ const STACK_RANG=new RegExp('('+DISC_RE+')[^。！？!?；;]{0,12}(?:再|又)?(?
 // 让点：否定（让不了 / 没法再让）或讲明要走申请审批时不算叠加
 const STACK_NEG=t=>/让不了|让不出|没法.{0,3}让|不能.{0,3}让|无法.{0,3}让|不会.{0,3}让/.test(t)||(/申请|审批/.test(t)&&!rlCancel(t));
 function stackOf(t){t=String(t);for(const re of STACK_RES){const m=t.match(re);if(m)return m[1].trim()}const m=!STACK_NEG(t)&&t.match(STACK_RANG);return m?m[1].trim():null}
+// r15：只说「92 折已经是底价 / 让不了 / 没法再让」是在拒绝让价，不算给了降价路径；同句里另讲了年付、30 万、申请审批才算
+const NO_CUT=t=>/底价|最低价|让不了|让不出|没法.{0,3}让|不能.{0,3}让|无法.{0,3}让|不会.{0,3}让|不能再(便宜|降|少)/.test(normRL(t));
 function evalRaw(i,t){const has=re=>re.test(t);
  const f={emp:has(/理解|明白|顾虑|确实|换谁|能理解|不容易|正常/),q:has(/[？?]|吗|哪|什么|方便/),num:has(/\d/)&&has(/万|小时|工时|%|元|天/),sla:has(/SLA|停机|工程师|工时|风险/),
-  cite:(t.match(/K-\d\.\d\.\d/g)||[]),path:has(/年付|92\s*折|30\s*万|审批|阶梯|申请/),next:has(/约|周[一二三四五六日]|明天|下周|报价单|试用|回电|再聊|时间/),slow:has(/慢|举个|比如|例子|清楚吗|听懂/)};
+  cite:(t.match(/K-\d\.\d\.\d/g)||[]),path:has(/年付|92\s*折|30\s*万|审批|阶梯|申请/)&&(!NO_CUT(t)||has(/年付|30\s*万|审批|申请/)),next:has(/约|周[一二三四五六日]|明天|下周|报价单|试用|回电|再聊|时间/),slow:has(/慢|举个|比如|例子|清楚吗|听懂/)};
  const pm=normRL(t).match(redlineRe('S-087'));const red=pm&&!/92\s*折/.test(pm[0])&&!(/申请|审批/.test(t)&&!/直接|就给|可以给/.test(t)&&!rlCancel(t));
  const st=stackOf(t);
  const d={emp:52+(f.emp?28:0)+(f.q?8:0)+(f.slow?6:0),val:48+(f.num?24:0)+(f.sla?12:0)+(f.cite.length?6:0),pol:78+(f.path?12:0)+(f.cite.length?4:0),ctl:52+(f.next?26:0)+(f.q?8:0)+(f.path?6:0)};
@@ -325,10 +336,10 @@ window.send=()=>{const s=S(),t=$('#ta').value.trim();if(s.turns.length>=CONFIG.m
 window.retryTurn=i=>{const s=S();askText('重练第 '+(i+1)+' 回合','输入新的回答，提交后这一回合重新评分。',(s.turns.find(x=>x.i==i)||{}).t||'',t=>{const f=evalRaw(i,t);
  s.turns=s.turns.map(x=>x.i==i?{i,t,k:f.bad?'w':'g',f}:x);s.retried[i]=1;save(s);renderSess();toast(f.bad?'还没到位，看看新的点评再试':'这一回合重练过了，分数已更新')})};
 // ---- 新的一遍：attempt_id 全局递增（含放弃的遍次），变体避开当前与上一遍；提示状态清零 ----
-newSess=function(avoid){const hs=H(),no=hs.length+1,prev=hs.slice(-1)[0];const cur=LS.get('sess',null);const seq=Math.max(LS.get('seq',hs.length),no-1,cur&&cur.att?parseInt(cur.att.slice(-4)):0)+1;LS.set('seq',seq);
+newSess=function(avoid){const hs=H(),no=hs.length+abN('S-087')+1,prev=hs.slice(-1)[0];const cur=LS.get('sess',null);const seq=Math.max(LS.get('seq',hs.length),no-1,cur&&cur.att?parseInt(cur.att.slice(-4)):0)+1;LS.set('seq',seq);
  const bad=new Set([avoid,prev&&VARS.findIndex(v=>v.id==prev.var)]);let vi=(seq+1)%3;for(let k=0;k<3&&bad.has(vi);k++)vi=(vi+1)%3;
  return{no,vi,att:'A-087-'+pad(seq),seed:'5087-'+pad(seq)+'-'+vi,hint:0,start:Date.now(),el:0,turns:[],retried:{}}};
-window.resetAtt=()=>{if(!confirm('重置这一遍？这一遍记为放弃，不计成绩，会换一个新变体。'))return;clearInterval(timer);const s=S();save(newSess(s.vi));lastPos=0;go();const c=S();toast('已重置 · 新的一遍 '+c.att+' · 变体 '+VARS[c.vi].id)}; // r14：toast 读渲染后的当前遍次（与页头同源）
+window.resetAtt=()=>{if(!confirm('重置这一遍？这一遍记为放弃，不计成绩，会换一个新变体。'))return;clearInterval(timer);const s=S();if(s.turns&&s.turns.length)LS.set('ab_S-087',abN('S-087')+1);save(newSess(s.vi));lastPos=0;go();const c=S();toast('已重置 · 新的一遍 '+c.att+' · 变体 '+VARS[c.vi].id)}; // r14：toast 读渲染后的当前遍次（与页头同源）
 // ---- chip 插在光标处 ----
 let lastPos=null;
 document.addEventListener('selectionchange',()=>{const ta=document.activeElement;if(ta&&ta.id=='ta')lastPos=ta.selectionStart});
