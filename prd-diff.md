@@ -255,7 +255,7 @@
 - 补丁 1（PM 2026-10-22）：成绩单「真连接测试通过」「检测页出口 IP 一致」两行各带「模拟」标签，grade.json 里这两项 `"simulated": true`（`check_page.exit_ip_simulated: true`）；检测页「出口 IP」一行也带「模拟」标签。扣分文案按 PM 定稿改了 15 条（每条后面加「怎么改」），单测逐字核对（`COPY_2026_10_22`）。截图 04 / 05 / 06 已更新。
 - 补丁 2（合规，项目负责人定）：路由模式改为中性名称「全局」「规则分流」「直连」（原第二项改名为「规则分流」，逻辑不变：题目要求「全局」或「规则分流」）；内部 key 也改为 `rule`，扣分码改为 `route_rule_need_global` / `route_global_need_rule`；检测页改名 check-a / check-b.lab.example。界面、扣分文案、字段表、截图里都不再出现原来的路由名称及相关地域字样，单测（引擎常量 + 所有输出）和 e2e（页面 HTML）都有断言。
 - 补丁 3（文案定稿 + 项目负责人定）：
-  - 路由 3 条扣分文案按文案同学定稿（route_direct / route_rule_need_global / route_global_need_rule）。
-  - 没走通代理封顶：真连接失败或检测页出口 IP 不一致（节点参数任一项错、没有活动服务器、系统代理清除 / 不改变、路由让检测页直连、本地端口冲突）时，整回合最高 `V2_FAIL_CAP` 分（`v2ray-engine.js`，暂定 59，可能改 50），判「不通过」；成绩单顶部显示 `cap_not_connected` 说明，grade.json 增加 `raw_total`（各项合计）、`connected`、`cap: {reason, text, value, applied}`、`passed`、`verdict`、`pass_line`。走通了代理但 DNS 泄露、或「规则分流」题选了「全局」，照常计分不封顶。白卷仍 0 分。
+  - 路由 3 条扣分文案按最终定稿（route_direct / route_rule_need_global / route_global_need_rule）。
+  - 没走通代理封顶：真连接失败或检测页出口 IP 不一致（节点参数任一项错、没有活动服务器、系统代理清除 / 不改变、路由让检测页直连、本地端口冲突）时，整回合最高 `V2_FAIL_CAP` 分（`v2ray-engine.js`，项目负责人定为 50），判「不通过」；成绩单顶部显示 `cap_not_connected` 说明，grade.json 增加 `raw_total`（各项合计）、`connected`、`cap: {reason, text, value, applied}`、`passed`、`verdict`、`pass_line`。走通了代理但 DNS 泄露、或「规则分流」题选了「全局」，照常计分不封顶。白卷仍 0 分。
   - 初始路由改为「直连」，默认值拿不到路由分。
   - GitHub Pages 只发布网站文件：`.github/workflows/pages.yml` 本来就是 Actions 部署，改为先跑 `scripts/build-site.sh _site`（白名单 = index.html 引用的 js / css + index.html + .nojekyll），再盖版本号、上传 `_site`。tests/、*.md、shots/、scripts/、.github/ 不进产物，脚本自带检查，有内部文件直接失败。

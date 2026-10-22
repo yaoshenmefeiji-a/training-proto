@@ -92,8 +92,8 @@ const COPY_2026_10_22={
  "sys_clear": "系统代理是「清除系统代理」，浏览器不经过 v2rayN，直接上网。改成「自动配置系统代理」。",
  "sys_keep": "系统代理是「不改变系统代理」，练习机原来没设代理，浏览器还是直连。改成「自动配置系统代理」。",
  "route_direct": "路由选了「直连」，所有流量都不经过代理。按任务要求重新选路由模式。",
- "route_rule_need_global": "检测页（{host}）在分流规则里是直连，选「规则分流」时它不走代理，出口 IP 变回本机。任务要求「全局」，改成「全局」。",
- "route_global_need_rule": "任务要求「规则分流」，你选了「全局」，本该直连的网站也绕道代理，变慢还占用节点流量。改成「规则分流」。",
+ "route_rule_need_global": "任务要求「全局」，你选了「规则分流」。检测页（{host}）在分流规则的直连名单里，访问它不走代理，出口 IP 变回本机。改成「全局」。",
+ "route_global_need_rule": "任务要求「规则分流」，你选了「全局」，本该直连的网站也会绕道代理，变慢还占用节点流量。改成「规则分流」。",
  "dns_local": "DNS 选了「本机 DNS（直连）」，查域名的请求绕开了代理，直接发给本地运营商，你访问过哪些网站对方都看得到。在参数设置里改成「远程 DNS（走代理）」。",
  "port_conflict": "本地 SOCKS 端口和 HTTP 端口都是 {port}，v2ray 核心起不来。把两个端口改成不一样的，比如默认的 10808 和 10809。"
 };
@@ -107,7 +107,7 @@ test('定稿文案填空后的整句（成绩单上显示的样子）',()=>{
  assert.ok(txt('tls-off').includes(COPY_2026_10_22.tls_need));assert.ok(txt('tls-extra').includes(COPY_2026_10_22.tls_extra));
  assert.ok(txt('proxy-off').includes(COPY_2026_10_22.sys_clear));assert.ok(txt('proxy-keep').includes(COPY_2026_10_22.sys_keep));
  assert.ok(txt('routing-direct').includes(COPY_2026_10_22.route_direct));
- assert.ok(txt('routing-rule-need-global').includes('检测页（check-a.lab.example）在分流规则里是直连，选「规则分流」时它不走代理，出口 IP 变回本机。任务要求「全局」，改成「全局」。'));
+ assert.ok(txt('routing-rule-need-global').includes('任务要求「全局」，你选了「规则分流」。检测页（check-a.lab.example）在分流规则的直连名单里，访问它不走代理，出口 IP 变回本机。改成「全局」。'));
  assert.ok(txt('routing-global-need-rule').includes(COPY_2026_10_22.route_global_need_rule));assert.ok(txt('dns-leak').includes(COPY_2026_10_22.dns_local));
  assert.ok(txt('local-port-conflict').some(t=>t.includes('本地 SOCKS 端口和 HTTP 端口都是 10808，v2ray 核心起不来。把两个端口改成不一样的，比如默认的 10808 和 10809。')));
  assert.ok(txt('active-none').includes(COPY_2026_10_22.no_server));
@@ -130,11 +130,11 @@ test('路由：要求「全局」的题选「规则分流」→ 检测页直连�
  c=mut(NODE_RULE,c=>{c.routing='global'});assert.equal(E.checkPage(c,NODE_RULE).match,true);assert.equal(E.grade(c,NODE_RULE).items.find(i=>i.key=='routing').score,0);
  c=ref(NODE_RULE);assert.equal(E.grade(c,NODE_RULE).total,100)});
 
-// ---- 没走通代理封顶（项目负责人定：V2_FAIL_CAP，暂定 59） ----
+// ---- 没走通代理封顶（项目负责人定：V2_FAIL_CAP = 50） ----
 const CAP_TEXT=c=>'浏览器没有走通代理，整回合最高 '+c+' 分，判不通过。先按上面的扣分原因把连接改通。';
 const capped=(g,why)=>{assert.ok(g.total<=E.V2_FAIL_CAP,why+' total '+g.total);assert.equal(g.passed,false,why);assert.equal(g.verdict,'不通过',why);assert.equal(g.connected,false,why);
  assert.equal(g.cap.reason,'cap_not_connected');assert.equal(g.cap.value,E.V2_FAIL_CAP);assert.equal(g.cap.text,CAP_TEXT(E.V2_FAIL_CAP));assert.equal(g.total,Math.min(g.raw_total,E.V2_FAIL_CAP));assert.equal(g.cap.applied,g.raw_total>E.V2_FAIL_CAP)};
-test('封顶常量与文案：V2_FAIL_CAP = 59，cap_not_connected 在 V2_DEDUCT 里',()=>{assert.equal(E.V2_FAIL_CAP,59);assert.equal(E.V2_DEDUCT.cap_not_connected,'浏览器没有走通代理，整回合最高 {cap} 分，判不通过。先按上面的扣分原因把连接改通。')});
+test('封顶常量与文案：V2_FAIL_CAP = 50，cap_not_connected 在 V2_DEDUCT 里',()=>{assert.equal(E.V2_FAIL_CAP,50);assert.equal(E.V2_DEDUCT.cap_not_connected,'浏览器没有走通代理，整回合最高 {cap} 分，判不通过。先按上面的扣分原因把连接改通。')});
 test('封顶：每个节点参数单独填错（各协议 / 传输 / TLS 组合）→ ≤ 封顶、不通过',()=>{
  const MUT={addr:s=>{s.addr='wrong.lab.example'},port:s=>{s.port=+s.port==443?8443:+s.port+1},id:s=>{s.id=s.proto=='ss'?'wrongpass':s.id.replace(/^./,c=>c=='a'?'b':'a')},
   aid:s=>{if(s.proto=='vmess')s.aid=8;else if(s.proto=='vless')s.enc='auto';else s.enc=s.enc=='aes-128-gcm'?'aes-256-gcm':'aes-128-gcm'},

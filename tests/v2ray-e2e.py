@@ -89,8 +89,8 @@ with sync_playwright() as pw:
     pg.click('button:has-text("✓ 提交")'); pg.wait_for_timeout(300); g=json.loads(pg.locator('#v2json').inner_text())
     it={i['key']:i for i in g['items']}
     check('有扣分的成绩单：UUID 第 3 段 / 系统代理 / 路由（初始直连）/ DNS 各扣在对的项',g['total']==37 and it['sysproxy']['score']==0 and it['dns']['score']==0 and it['routing']['score']==0 and it['routing']['deductions'][0]['code']=='route_direct' and any('UUID 第 3 段填错' in (f['cause'] or '') for f in it['node']['evidence']['fields']),g['total'])
-    cap_txt='浏览器没有走通代理，整回合最高 59 分，判不通过。先按上面的扣分原因把连接改通。'
-    check('没走通代理：成绩单显示「不通过」+ 封顶说明，grade.json 有 cap',pg.locator('#v2verdict').inner_text()=='不通过' and cap_txt in pg.locator('#v2cap').inner_text() and g['cap']['value']==59 and g['cap']['reason']=='cap_not_connected' and g['verdict']=='不通过' and g['passed'] is False, g.get('cap'))
+    cap_txt='浏览器没有走通代理，整回合最高 50 分，判不通过。先按上面的扣分原因把连接改通。'
+    check('没走通代理：成绩单显示「不通过」+ 封顶说明，grade.json 有 cap',pg.locator('#v2verdict').inner_text()=='不通过' and cap_txt in pg.locator('#v2cap').inner_text() and g['cap']['value']==50 and g['cap']['reason']=='cap_not_connected' and g['verdict']=='不通过' and g['passed'] is False, g.get('cap'))
     sim_tags_ok('有扣分')
     no_banned('有扣分成绩单（要求规则分流）')
     shot(pg,'06-grade-with-deductions.png','#v2grade')

@@ -21,7 +21,7 @@ const FIXTURES=[
  {name:'proxy-keep',s202:'没开系统代理',node:NODE_WS,cfg:n=>mut(n,c=>{c.sysProxy='keep'}),zero:['sysproxy','exit'],expect:/不改变系统代理/,raw:75},
  {name:'dns-leak',s202:'DNS 没走代理',node:NODE_WS,cfg:n=>mut(n,c=>{c.dns='local'}),zero:['dns'],expect:/本机 DNS（直连）/,raw:90,dnsLeak:true},
  {name:'routing-direct',node:NODE_WS,cfg:n=>mut(n,c=>{c.routing='direct'}),zero:['routing','exit'],expect:/路由选了「直连」/,raw:80},
- {name:'routing-rule-need-global',node:NODE_WS,cfg:n=>mut(n,c=>{c.routing='rule'}),zero:['routing','exit'],expect:/选「规则分流」时它不走代理/,raw:80},
+ {name:'routing-rule-need-global',node:NODE_WS,cfg:n=>mut(n,c=>{c.routing='rule'}),zero:['routing','exit'],expect:/任务要求「全局」，你选了「规则分流」/,raw:80},
  {name:'routing-global-need-rule',node:NODE_RULE,cfg:n=>mut(n,c=>{c.routing='global'}),zero:['routing'],expect:/任务要求「规则分流」，你选了「全局」/,raw:90},
  {name:'aid-nonzero',node:E.genNode(777,{proto:'vmess',net:'tcp',tls:false,routeReq:'global'}),cfg:n=>mut(n,(c,s)=>{s.aid=64}),zero:['conn','exit'],field:'extra',expect:/额外ID 填了 64/,raw:78},
  {name:'active-none',node:NODE_WS,cfg:n=>mut(n,c=>{c.active=-1}),zero:['active','sysproxy','routing','dns','conn','exit'],expect:/没有设为活动服务器/,raw:35},
