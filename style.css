@@ -188,3 +188,4 @@ table.v2sub{margin-top:6px;font-size:13px}table.v2sub td{padding:4px 8px}
 @media(max-width:1100px){.v2grid{grid-template-columns:minmax(0,1fr)}}
 .v2win.hasdlg .v2tbl{height:470px}
 .v2kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-top:12px}
+.tag.v2sim{margin:0 0 0 6px;font-weight:400;vertical-align:middle;cursor:help}

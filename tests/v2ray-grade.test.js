@@ -66,3 +66,45 @@ test('检测页：系统代理关 → 出口是本机 IP；直连 → 不走代�
 test('扣分文案都来自 V2_DEDUCT 一张表，界面字段名表完整',()=>{
  const keys=new Set(Object.keys(E.V2_DEDUCT));FIXTURES.forEach(f=>E.grade(f.cfg(f.node),f.node).items.forEach(i=>i.deductions.forEach(d=>assert.ok(keys.has(d.code)||d.code=='blank_node','未登记的扣分码 '+d.code))));
  for(const k of ['addr','port','id','pwd','aid','enc','net','host','path','tls','alias'])assert.ok(E.V2_LABELS.fields[k])});
+
+test('「真连接测试通过」「检测页出口 IP 一致」带 simulated: true，其他项不带（满分 / 扣分 / 白卷都一样）',()=>{
+ const f=FIXTURES.find(x=>x.name=='wrong-uuid');
+ for(const g of [E.grade(ref(NODE_WS),NODE_WS),E.grade(f.cfg(f.node),f.node),E.grade(E.blankConfig(),NODE_WS)]){
+  for(const it of g.items){if(it.key=='conn'||it.key=='exit')assert.equal(it.simulated,true,it.key);else assert.equal('simulated' in it,false,it.key)}
+  assert.equal(g.check_page.exit_ip_simulated,true);
+  const j=JSON.parse(JSON.stringify(g));assert.equal(j.items.find(i=>i.name=='真连接测试通过').simulated,true);assert.equal(j.items.find(i=>i.name=='检测页出口 IP 一致').simulated,true)}
+ assert.equal(E.V2_LABELS.simTag,'模拟')});
+
+
+// 2026-10-22 PM 定稿的扣分文案（逐字核对；文案再改时同步改这里）
+const COPY_2026_10_22={
+ "uuid_seg": "UUID 第 {seg} 段填错，连接被服务器拒绝。把任务给的 UUID 整串复制粘贴进去，别手敲。",
+ "uuid_format": "UUID 格式不对（应为 8-4-4-4-12 共 5 段），连接被服务器拒绝。把任务给的 UUID 整串复制粘贴进去。",
+ "uuid_empty": "用户ID（UUID）没填，连接被服务器拒绝。把任务给的 UUID 粘贴进去。",
+ "pwd": "密码和任务给的不一致，服务器解不开数据，连接失败。把任务给的密码复制粘贴进去。",
+ "proto": "协议选成了 {got}，任务节点是 {want}，握手失败。删掉这条，用「添加[{want}]服务器」重新加。",
+ "extra_proto": "协议选错了，额外ID 和加密方式也跟着对不上。先把协议改对，这一项会一起恢复。",
+ "wsopt_net": "传输协议没选 ws，路径和伪装域名填了也不起作用。把传输协议改成 ws。",
+ "tls_need": "任务节点开了 TLS，你没开，握手失败。传输层安全选 tls。",
+ "tls_extra": "任务节点没开 TLS，你开了，握手失败。把传输层安全清空。",
+ "no_server": "还没有活动服务器，这一项没法判断。先把任务给的节点设为活动服务器。",
+ "sys_clear": "系统代理是「清除系统代理」，浏览器不经过 v2rayN，直接上网。改成「自动配置系统代理」。",
+ "sys_keep": "系统代理是「不改变系统代理」，练习机原来没设代理，浏览器还是直连。改成「自动配置系统代理」。",
+ "route_direct": "路由选了「直连」，所有流量都不经过代理。按任务要求改成「全局」或「绕过大陆」。",
+ "dns_local": "DNS 选了「本机 DNS（直连）」，查域名的请求绕开了代理，直接发给本地运营商，你访问过哪些网站对方都看得到。在参数设置里改成「远程 DNS（走代理）」。",
+ "port_conflict": "本地 SOCKS 端口和 HTTP 端口都是 {port}，v2ray 核心起不来。把两个端口改成不一样的，比如默认的 10808 和 10809。"
+};
+test('扣分文案与 PM 定稿逐字一致（V2_DEDUCT）',()=>{for(const [k,v] of Object.entries(COPY_2026_10_22))assert.equal(E.V2_DEDUCT[k],v,k)});
+test('定稿文案填空后的整句（成绩单上显示的样子）',()=>{
+ const txt=name=>{const f=FIXTURES.find(x=>x.name==name);return allText(E.grade(f.cfg(f.node),f.node))};
+ assert.ok(txt('wrong-uuid').includes('UUID 第 3 段填错，连接被服务器拒绝。把任务给的 UUID 整串复制粘贴进去，别手敲。'));
+ assert.ok(txt('wrong-protocol').includes('协议选成了 VLESS，任务节点是 VMess，握手失败。删掉这条，用「添加[VMess]服务器」重新加。'));
+ assert.ok(txt('wrong-protocol').includes(COPY_2026_10_22.extra_proto));
+ assert.ok(txt('wrong-transport').includes(COPY_2026_10_22.wsopt_net));
+ assert.ok(txt('tls-off').includes(COPY_2026_10_22.tls_need));assert.ok(txt('tls-extra').includes(COPY_2026_10_22.tls_extra));
+ assert.ok(txt('proxy-off').includes(COPY_2026_10_22.sys_clear));assert.ok(txt('proxy-keep').includes(COPY_2026_10_22.sys_keep));
+ assert.ok(txt('routing-direct').includes(COPY_2026_10_22.route_direct));assert.ok(txt('dns-leak').includes(COPY_2026_10_22.dns_local));
+ assert.ok(txt('local-port-conflict').some(t=>t.includes('本地 SOCKS 端口和 HTTP 端口都是 10808，v2ray 核心起不来。把两个端口改成不一样的，比如默认的 10808 和 10809。')));
+ assert.ok(txt('active-none').includes(COPY_2026_10_22.no_server));
+ const n=E.genNode(5,{proto:'ss'});const c=ref(n);c.servers[0].id='wrong';assert.ok(allText(E.grade(c,n)).includes(COPY_2026_10_22.pwd));
+ const n2=E.genNode(6,{proto:'vless'});const c2=ref(n2);c2.servers[0].id='';assert.ok(allText(E.grade(c2,n2)).includes(COPY_2026_10_22.uuid_empty));c2.servers[0].id='abc';assert.ok(allText(E.grade(c2,n2)).includes(COPY_2026_10_22.uuid_format))});

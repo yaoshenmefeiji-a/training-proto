@@ -25,6 +25,16 @@ with sync_playwright() as pw:
         menu('设置','路由设置'); pg.check(f'#v2f input[name=routing][value={n["routeReq"]}]'); pg.click('.v2btns .v2b.p')
         menu('设置','参数设置'); pg.check('#v2f input[name=dns][value=remote]'); pg.click('.v2btns .v2b.p')
         menu('服务器','测试真连接延迟')
+    def sim_tags_ok(where):
+        rows=pg.locator('#v2grade [data-item]')
+        ok=True; got=[]
+        for i in range(rows.count()):
+            r=rows.nth(i); k=r.get_attribute('data-item'); has=r.locator('.v2sim:text-is("模拟")').count()==1; got.append((k,has))
+            ok=ok and (has == (k in ('conn','exit')))
+        jj=json.loads(pg.locator('#v2json').inner_text()); sim={i['key']:i.get('simulated') for i in jj['items']}
+        ok=ok and sim['conn'] is True and sim['exit'] is True and all(v is None for k,v in sim.items() if k not in ('conn','exit'))
+        ok=ok and pg.locator('#v2grade [data-check=exit_ip] .v2sim:text-is("模拟")').count()==1
+        check(where+'：成绩单「真连接测试通过」「检测页出口 IP 一致」行内有「模拟」，其他行没有；grade.json simulated: true',ok,got)
     # 1 入口
     pg.goto(BASE+'/index.html#/arena'); pg.wait_for_timeout(400)
     check('练习场里有入口卡片「v2ray 节点配置实操」',pg.locator('#v2entry:has-text("v2ray 节点配置实操")').count()==1)
@@ -43,11 +53,13 @@ with sync_playwright() as pw:
     pg.click('table.v2t tr >> nth=1'); pg.keyboard.press('Enter'); check('按 Enter 设为活动服务器',pg.locator('table.v2t tr.act').count()==1)
     finish(n); check('真连接延迟显示 ms',pg.locator('table.v2t td.v2ok').count()==1, pg.locator('table.v2t td.v2ok').first.inner_text() if pg.locator('table.v2t td.v2ok').count() else '')
     pg.click('button:has-text("打开检测页")'); check('检测页出口 IP 一致',pg.locator('#v2chk:has-text("✓ 一致")').count()==1)
+    check('检测页出口 IP 行有「模拟」标签（且只有这一行）',pg.locator('#v2chk [data-check=exit_ip] .v2sim:text-is("模拟")').count()==1 and pg.locator('#v2chk .v2sim').count()==1)
     pg.click('button:has-text("✓ 提交")'); pg.wait_for_timeout(300)
     g=json.loads(pg.locator('#v2json').inner_text()); check('手动填写的标准配置 = 100（S-201）',g['total']==100,g['total'])
     check('成绩单标「模拟判分」',pg.locator('#v2grade .tag:has-text("模拟判分")').count()==1 and g['grading']=='模拟判分')
     sh=pg.evaluate('''()=>{const s=JSON.parse(localStorage.tp_v2),n=V2E.genNode(s.seed);return [1,2,3].map(()=>JSON.stringify(V2E.grade(s.cfg,n)))}''')
     check('浏览器里同一配置判 3 次一致',len(set(sh))==1)
+    sim_tags_ok('满分')
     shot(pg,'05-grade-full-score.png','#v2grade')
     # 4 重新练习：导入（先坏链接，再改错 UUID 第 3 段），不开系统代理
     pg.click('#v2grade button:has-text("重新练习")'); pg.wait_for_timeout(200); seed(100008); n=node()
@@ -59,10 +71,12 @@ with sync_playwright() as pw:
     pg.fill('#v2f [name=links]',bad); pg.click('.v2btns .v2b.p'); pg.click('table.v2t tr >> nth=1'); menu('服务器','设为活动服务器'); menu('服务器','测试真连接延迟')
     check('UUID 错：真连接延迟显示「超时」',pg.locator('table.v2t td.v2to:has-text("超时")').count()==1)
     pg.click('button:has-text("打开检测页")'); check('检测页显示不一致 + 本机 IP',pg.locator('#v2chk:has-text("✕ 不一致")').count()==1 and pg.locator(f'#v2chk:has-text("{n["realIp"]}")').count()>0)
+    check('不一致时检测页出口 IP 行仍有「模拟」标签',pg.locator('#v2chk [data-check=exit_ip] .v2sim').count()==1)
     pg.locator('#v2chk').scroll_into_view_if_needed(); shot(pg,'04-check-page-mismatch.png','#v2chk')
     pg.click('button:has-text("✓ 提交")'); pg.wait_for_timeout(300); g=json.loads(pg.locator('#v2json').inner_text())
     it={i['key']:i for i in g['items']}
     check('有扣分的成绩单：UUID 第 3 段 / 系统代理 / DNS 各扣在对的项',g['total']==47 and it['sysproxy']['score']==0 and it['dns']['score']==0 and any('UUID 第 3 段填错' in (f['cause'] or '') for f in it['node']['evidence']['fields']),g['total'])
+    sim_tags_ok('有扣分')
     shot(pg,'06-grade-with-deductions.png','#v2grade')
     # 5 什么都不配直接交
     pg.click('#v2grade button:has-text("重新练习")'); pg.wait_for_timeout(200); pg.click('button:has-text("✓ 提交")'); pg.wait_for_timeout(300)

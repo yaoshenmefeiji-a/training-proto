@@ -22,7 +22,8 @@ const V2_LABELS={
  paramTitle:'参数设置',socksPort:'本地 SOCKS 监听端口',httpPort:'本地 HTTP 监听端口',dnsLabel:'DNS',
  routingTitle:'路由设置',
  status:{sysProxy:'系统代理',routing:'路由'},
- ok:'确定',cancel:'取消'
+ ok:'确定',cancel:'取消',
+ simTag:'模拟',simTagTitle:'这一项是网页模拟出来的结果，不是真实节点或真实检测页测出来的'
 };
 const SYS_PROXY={clear:'清除系统代理',auto:'自动配置系统代理',keep:'不改变系统代理'};
 const ROUTING={global:'全局',bypass:'绕过大陆',direct:'直连'};
@@ -48,8 +49,8 @@ const V2_ITEMS=[
  {key:'sysproxy',name:'系统代理开启',max:15},
  {key:'routing',name:'路由模式正确',max:10},
  {key:'dns',name:'DNS 走代理',max:10},
- {key:'conn',name:'真连接测试通过',max:10},
- {key:'exit',name:'检测页出口 IP 一致',max:10}
+ {key:'conn',name:'真连接测试通过',max:10,simulated:true},
+ {key:'exit',name:'检测页出口 IP 一致',max:10,simulated:true}
 ];
 // 「节点参数正确」按字段拆分（合计 35）
 const V2_NODE_FIELDS=[
@@ -69,33 +70,33 @@ const V2_NODE_FIELDS=[
 const V2_DEDUCT={
  blank_node:'没有添加任何服务器，节点参数无从判断。',
  blank_active:'没有添加任何服务器，没有可选的活动服务器。',
- proto:'协议选成了 {got}，任务节点是 {want}，握手失败。',
+ proto:'协议选成了 {got}，任务节点是 {want}，握手失败。删掉这条，用「添加[{want}]服务器」重新加。',
  addr:'地址填成了「{got}」，应为「{want}」，连不到练习服务器。',
  port:'端口填成了 {got}，应为 {want}，连不上服务器。',
- uuid_seg:'UUID 第 {seg} 段填错，连接被服务器拒绝。',
- uuid_format:'UUID 格式不对（应为 8-4-4-4-12 共 5 段），连接被服务器拒绝。',
- uuid_empty:'用户ID（UUID）没填，连接被服务器拒绝。',
- pwd:'密码和任务给的不一致，服务器解不开数据，连接失败。',
+ uuid_seg:'UUID 第 {seg} 段填错，连接被服务器拒绝。把任务给的 UUID 整串复制粘贴进去，别手敲。',
+ uuid_format:'UUID 格式不对（应为 8-4-4-4-12 共 5 段），连接被服务器拒绝。把任务给的 UUID 整串复制粘贴进去。',
+ uuid_empty:'用户ID（UUID）没填，连接被服务器拒绝。把任务给的 UUID 粘贴进去。',
+ pwd:'密码和任务给的不一致，服务器解不开数据，连接失败。把任务给的密码复制粘贴进去。',
  aid:'额外ID 填了 {got}，任务节点要求 0，连接被服务器拒绝。',
  vless_enc:'VLESS 的加密方式要选 none，你选了 {got}，连接失败。',
  ss_method:'加密方式选成了 {got}，任务节点是 {want}，服务器解不开数据。',
- extra_proto:'协议不对，额外ID / 加密方式对不上。',
+ extra_proto:'协议选错了，额外ID 和加密方式也跟着对不上。先把协议改对，这一项会一起恢复。',
  net:'传输协议选了 {got}，任务节点用的是 {want}，连接失败。',
  path:'路径填成了「{got}」，应为「{want}」，服务器找不到这个入口（404）。',
  host:'伪装域名填成了「{got}」，应为「{want}」，服务器不认这个域名。',
- wsopt_net:'传输协议没选 ws，路径和伪装域名没有生效。',
- tls_need:'任务节点开了 TLS，你没开，握手失败。',
- tls_extra:'任务节点没开 TLS，你开了，握手失败。',
+ wsopt_net:'传输协议没选 ws，路径和伪装域名填了也不起作用。把传输协议改成 ws。',
+ tls_need:'任务节点开了 TLS，你没开，握手失败。传输层安全选 tls。',
+ tls_extra:'任务节点没开 TLS，你开了，握手失败。把传输层安全清空。',
  active_none:'没有设为活动服务器（选中服务器后按 Enter，或点「设为活动服务器」）。',
  active_wrong:'活动服务器是「{alias}」，不是任务给的节点。',
- no_server:'还没有活动服务器，这一项不起作用。',
- sys_clear:'系统代理是「清除系统代理」，浏览器不经过 v2rayN，直接上网。',
- sys_keep:'系统代理是「不改变系统代理」，练习机原来没有设代理，浏览器仍然直连。',
- route_direct:'路由选了「直连」，所有流量都不经过代理。',
+ no_server:'还没有活动服务器，这一项没法判断。先把任务给的节点设为活动服务器。',
+ sys_clear:'系统代理是「清除系统代理」，浏览器不经过 v2rayN，直接上网。改成「自动配置系统代理」。',
+ sys_keep:'系统代理是「不改变系统代理」，练习机原来没设代理，浏览器还是直连。改成「自动配置系统代理」。',
+ route_direct:'路由选了「直连」，所有流量都不经过代理。按任务要求改成「全局」或「绕过大陆」。',
  route_bypass_cn:'检测页部署在国内（{host}），「绕过大陆」会让它直连，出口 IP 变回本机。任务要求「全局」。',
  route_global_need_bypass:'任务要求「绕过大陆」，你选了「全局」，国内网站也会绕道代理，变慢还占用节点流量。',
- dns_local:'DNS 选了「本机 DNS（直连）」，检测页看到的 DNS 服务器是本地运营商，你访问了哪些网站会暴露出去。',
- port_conflict:'本地 SOCKS 端口和 HTTP 端口都是 {port}，v2ray 核心起不来。',
+ dns_local:'DNS 选了「本机 DNS（直连）」，查域名的请求绕开了代理，直接发给本地运营商，你访问过哪些网站对方都看得到。在参数设置里改成「远程 DNS（走代理）」。',
+ port_conflict:'本地 SOCKS 端口和 HTTP 端口都是 {port}，v2ray 核心起不来。把两个端口改成不一样的，比如默认的 10808 和 10809。',
  port_range:'本地监听端口 {port} 不在 1–65535 之间，v2ray 核心起不来。',
  conn_linked:'测试真连接延迟：超时。原因同「节点参数正确」：{cause}',
  conn_no_active:'测试真连接延迟：没有活动服务器，测不了。',
@@ -256,7 +257,7 @@ function checkPage(cfg,n){const conn=connect(cfg,n),tp=trafficPath(cfg,n,conn);
 // ---------------------------------------------------------------------------
 function candidateIndex(cfg,n){let best=-1,bs=-1;cfg.servers.forEach((s,i)=>{const sc=fieldScore(fieldChecks(s,n))+(i===cfg.active?0.5:0);if(sc>bs){bs=sc;best=i}});return best}
 function grade(cfg,n){cfg=cfg||blankConfig();const servers=Array.isArray(cfg.servers)?cfg.servers:[];cfg=Object.assign(blankConfig(),cfg,{servers});
- const items=[];const add=(key,score,deductions,evidence)=>{const def=V2_ITEMS.find(x=>x.key==key);items.push({key,name:def.name,max:def.max,score,deductions,evidence})};
+ const items=[];const add=(key,score,deductions,evidence)=>{const def=V2_ITEMS.find(x=>x.key==key);const it={key,name:def.name,max:def.max,score,deductions,evidence};if(def.simulated)it.simulated=true;items.push(it)};
  const act=servers[cfg.active]||null;
  // 1 节点参数
  const ci=candidateIndex(cfg,n);
@@ -301,7 +302,7 @@ function grade(cfg,n){cfg=cfg||blankConfig();const servers=Array.isArray(cfg.ser
  return{schema:'v2ray-gui-sim/1',grading:'模拟判分',note:'网页模拟判分，不连真实节点，不代表真实连通。',seed:n.seed,
   task:{protocol:PROTO_NAME[n.proto],address:n.addr,port:n.port,net:n.net,host:n.host,path:n.path,tls:n.tls,routing_required:ROUTING[n.routeReq],expected_exit_ip:n.exitIp,check_page:'https://'+n.checkHost+'/'},
   total,max:100,items,
-  check_page:{exit_ip:cp.exit_ip,match:cp.match,dns_leak:cp.dns_leak,webrtc_leak:cp.webrtc_leak},
+  check_page:{exit_ip:cp.exit_ip,exit_ip_simulated:true,match:cp.match,dns_leak:cp.dns_leak,webrtc_leak:cp.webrtc_leak},
   config:{servers:servers.map(s=>({protocol:PROTO_NAME[s.proto]||s.proto,address:norm(s.addr),port:norm(s.port),id:norm(s.id),aid:s.aid,enc:s.enc,net:s.net,host:norm(s.host),path:norm(s.path),tls:s.tls=='tls',alias:norm(s.alias)})),active:act?cfg.active:null,sys_proxy:SYS_PROXY[cfg.sysProxy],routing:ROUTING[cfg.routing],dns:DNS_MODE[cfg.dns],socks_port:cfg.socks,http_port:cfg.http}}}
 
 // 参考答案（测试和演示用）：按任务节点填好的一份配置
