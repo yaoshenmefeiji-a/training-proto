@@ -93,8 +93,8 @@ const V2_DEDUCT={
  sys_clear:'系统代理是「清除系统代理」，浏览器不经过 v2rayN，直接上网。改成「自动配置系统代理」。',
  sys_keep:'系统代理是「不改变系统代理」，练习机原来没设代理，浏览器还是直连。改成「自动配置系统代理」。',
  route_direct:'路由选了「直连」，所有流量都不经过代理。按任务要求重新选路由模式。',
- route_rule_need_global:'任务要求「全局」，你选了「规则分流」。检测页（{host}）在分流规则的直连名单里，访问它不走代理，出口 IP 变回本机。按任务要求重新选路由模式。',
- route_global_need_rule:'任务要求「规则分流」，你选了「全局」，本该直连的网站也会绕道代理，变慢还占用节点流量。按任务要求重新选路由模式。',
+ route_rule_need_global:'检测页（{host}）在分流规则里是直连，选「规则分流」时它不走代理，出口 IP 变回本机。任务要求「全局」，改成「全局」。',
+ route_global_need_rule:'任务要求「规则分流」，你选了「全局」，本该直连的网站也绕道代理，变慢还占用节点流量。改成「规则分流」。',
  dns_local:'DNS 选了「本机 DNS（直连）」，查域名的请求绕开了代理，直接发给本地运营商，你访问过哪些网站对方都看得到。在参数设置里改成「远程 DNS（走代理）」。',
  port_conflict:'本地 SOCKS 端口和 HTTP 端口都是 {port}，v2ray 核心起不来。把两个端口改成不一样的，比如默认的 10808 和 10809。',
  port_range:'本地监听端口 {port} 不在 1–65535 之间，v2ray 核心起不来。',
@@ -105,6 +105,7 @@ const V2_DEDUCT={
  exit_conn_detail:'检测页看到的是本机真实 IP {real}，连接没建立：{cause}',
  exit_sys:'检测页看到的是本机真实 IP {real}。原因同「系统代理开启」：{cause}',
  exit_route:'检测页看到的是本机真实 IP {real}。原因同「路由模式正确」：{cause}',
+ cap_not_connected:'浏览器没有走通代理，整回合最高 {cap} 分，判不通过。先按上面的扣分原因把连接改通。',
  exit_no_active:'检测页看到的是本机真实 IP {real}，没有活动服务器。'
 };
 // 检测页上的说明（不计分的解释文字）
@@ -114,6 +115,10 @@ const V2_CHECK_NOTE={
  webrtc_off:'流量没有走代理，本机 IP 本来就直接暴露，这一项不判断。',
  dns_off:'流量没有走代理，DNS 也是本机直接查，这一项不判断。'
 };
+// 没走通代理时整回合封顶（项目负责人定：暂定 59，可能改成 50；只改这里）
+const V2_FAIL_CAP=59;
+// 达标线默认值（界面传入 CONFIG.masteryLine 时以界面为准）
+const V2_PASS_LINE=80;
 const fill=(t,o)=>String(t).replace(/\{([^}]+)\}/g,(m,k)=>o&&o[k]!=null?o[k]:m);
 
 // ---------------------------------------------------------------------------
@@ -195,9 +200,9 @@ function parseLinks(text){const lines=String(text==null?'':text).split(/\r?\n/).
  lines.forEach((l,i)=>{if(!l)return;let r;try{r=parseOne(l,i+1)}catch(e){r={error:fill(IMPORT_ERR.scheme,{line:i+1})}}if(r.server)out.servers.push(r.server);else out.errors.push(r.error)});return out}
 
 // ---------------------------------------------------------------------------
-// 客户端状态（练习初始状态：没有服务器、清除系统代理、规则分流、本机 DNS）
+// 客户端状态（练习初始状态：没有服务器、清除系统代理、直连、本机 DNS；默认值不得分）
 // ---------------------------------------------------------------------------
-function blankConfig(){return{servers:[],active:-1,sysProxy:'clear',routing:'rule',dns:'local',socks:10808,http:10809}}
+function blankConfig(){return{servers:[],active:-1,sysProxy:'clear',routing:'direct',dns:'local',socks:10808,http:10809}}
 function newServer(proto){return{proto,addr:'',port:'',id:'',aid:proto=='vmess'?0:null,enc:proto=='vmess'?'auto':proto=='vless'?'none':SS_METHODS[1],net:'tcp',host:'',path:'',tls:'',alias:''}}
 const norm=v=>String(v==null?'':v).trim();
 const lc=v=>norm(v).toLowerCase();
@@ -257,7 +262,7 @@ function checkPage(cfg,n){const conn=connect(cfg,n),tp=trafficPath(cfg,n,conn);
 // 判分：100 分 = 各项之和；每条扣分写清原因；同一原因连带的项把说明连起来
 // ---------------------------------------------------------------------------
 function candidateIndex(cfg,n){let best=-1,bs=-1;cfg.servers.forEach((s,i)=>{const sc=fieldScore(fieldChecks(s,n))+(i===cfg.active?0.5:0);if(sc>bs){bs=sc;best=i}});return best}
-function grade(cfg,n){cfg=cfg||blankConfig();const servers=Array.isArray(cfg.servers)?cfg.servers:[];cfg=Object.assign(blankConfig(),cfg,{servers});
+function grade(cfg,n,opt){const passLine=opt&&opt.passLine!=null?opt.passLine:V2_PASS_LINE;cfg=cfg||blankConfig();const servers=Array.isArray(cfg.servers)?cfg.servers:[];cfg=Object.assign(blankConfig(),cfg,{servers});
  const items=[];const add=(key,score,deductions,evidence)=>{const def=V2_ITEMS.find(x=>x.key==key);const it={key,name:def.name,max:def.max,score,deductions,evidence};if(def.simulated)it.simulated=true;items.push(it)};
  const act=servers[cfg.active]||null;
  // 1 节点参数
@@ -299,17 +304,22 @@ function grade(cfg,n){cfg=cfg||blankConfig();const servers=Array.isArray(cfg.ser
   else if(tp.why=='sys'){code='exit_sys';text=fill(V2_DEDUCT.exit_sys,{real:n.realIp,cause:V2_DEDUCT[cfg.sysProxy=='keep'?'sys_keep':'sys_clear']});linked='sysproxy'}
   else{code='exit_route';text=fill(V2_DEDUCT.exit_route,{real:n.realIp,cause:fill(V2_DEDUCT[tp.why],{host:n.checkHost})});linked='routing'}
   add('exit',0,[{code,text,points:10,linked}],{exit_ip:cp.exit_ip,expected_ip:cp.expected_ip})}
- const total=items.reduce((a,x)=>a+x.score,0);
+ const raw=items.reduce((a,x)=>a+x.score,0);
+ // 没走通代理（真连接失败，或检测页出口 IP 不一致）→ 整回合封顶 V2_FAIL_CAP，判不通过
+ const connected=conn.ok&&cp.match;
+ const cap=connected?null:{reason:'cap_not_connected',text:fill(V2_DEDUCT.cap_not_connected,{cap:V2_FAIL_CAP}),value:V2_FAIL_CAP,applied:raw>V2_FAIL_CAP};
+ const total=cap?Math.min(raw,V2_FAIL_CAP):raw;
+ const passed=connected&&total>=passLine;
  return{schema:'v2ray-gui-sim/1',grading:'模拟判分',note:'网页模拟判分，不连真实节点，不代表真实连通。',seed:n.seed,
   task:{protocol:PROTO_NAME[n.proto],address:n.addr,port:n.port,net:n.net,host:n.host,path:n.path,tls:n.tls,routing_required:ROUTING[n.routeReq],expected_exit_ip:n.exitIp,check_page:'https://'+n.checkHost+'/'},
-  total,max:100,items,
+  total,raw_total:raw,max:100,connected,cap,passed,verdict:passed?'通过':'不通过',pass_line:passLine,items,
   check_page:{exit_ip:cp.exit_ip,exit_ip_simulated:true,match:cp.match,dns_leak:cp.dns_leak,webrtc_leak:cp.webrtc_leak},
   config:{servers:servers.map(s=>({protocol:PROTO_NAME[s.proto]||s.proto,address:norm(s.addr),port:norm(s.port),id:norm(s.id),aid:s.aid,enc:s.enc,net:s.net,host:norm(s.host),path:norm(s.path),tls:s.tls=='tls',alias:norm(s.alias)})),active:act?cfg.active:null,sys_proxy:SYS_PROXY[cfg.sysProxy],routing:ROUTING[cfg.routing],dns:DNS_MODE[cfg.dns],socks_port:cfg.socks,http_port:cfg.http}}}
 
 // 参考答案（测试和演示用）：按任务节点填好的一份配置
 function referenceConfig(n){const c=blankConfig();c.servers=[{proto:n.proto,addr:n.addr,port:n.port,id:n.id,aid:n.aid,enc:n.enc,net:n.net,host:n.host,path:n.path,tls:n.tls?'tls':'',alias:n.alias}];c.active=0;c.sysProxy='auto';c.routing=n.routeReq;c.dns='remote';return c}
 
-const V2E={V2_LABELS,SYS_PROXY,ROUTING,DNS_MODE,PROTO_NAME,NETS,VMESS_SEC,VLESS_ENC,SS_METHODS,V2_CHECKS,V2_ITEMS,V2_NODE_FIELDS,V2_DEDUCT,V2_CHECK_NOTE,IMPORT_ERR,
+const V2E={V2_FAIL_CAP,V2_PASS_LINE,V2_LABELS,SYS_PROXY,ROUTING,DNS_MODE,PROTO_NAME,NETS,VMESS_SEC,VLESS_ENC,SS_METHODS,V2_CHECKS,V2_ITEMS,V2_NODE_FIELDS,V2_DEDUCT,V2_CHECK_NOTE,IMPORT_ERR,
  fill,genNode,shareLink,parseLinks,blankConfig,newServer,fieldChecks,connect,testServer,checkPage,grade,referenceConfig,portOk};
 if(typeof module!='undefined'&&module.exports)module.exports=V2E;else root.V2E=V2E;
 })(typeof window!='undefined'?window:globalThis);

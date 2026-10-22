@@ -236,7 +236,7 @@
 - 文件：`v2ray-engine.js`（出题 / 分享链接解析 / 模拟连接 / 模拟检测页 / 判分，纯函数，node 可直接 require）；`v2ray.js`（界面）；`style.css` 末尾「v2ray」一段；`v2ray-fields.md`（字段表，由 `node tests/v2ray-fields.js` 生成）。
 - 练习任务：每次一组新节点（练习数据，文档保留地址段 192.0.2.x / 198.51.100.x / 203.0.113.x 和 .example 域名）：VMess / VLESS / Shadowsocks 随机，tcp 或 ws（路径 + 伪装域名），TLS 开或关，目标「出口 IP 应为 x」，路由要求「全局」（检测页在分流规则的直连名单里）或「规则分流」（检测页不在直连名单里），DNS 要走代理。同时给出同一节点的分享链接。
 - 模拟客户端（仿 v2rayN Windows，HTML/CSS 绘制）：菜单 服务器 / 订阅 / 设置 / 帮助；添加 VMess / VLESS / Shadowsocks 服务器（全部字段）、从剪贴板导入（vmess:// base64 JSON、vless://、ss:// SIP002 与旧式，一行一条，坏链接给原因、不加服务器）、设为活动服务器（Enter）、编辑（双击）、删除（Delete）、测试真连接延迟（Ctrl+R，显示 ms 或超时）；状态栏 系统代理（清除 / 自动配置 / 不改变）和 路由（全局 / 规则分流 / 直连）；参数设置里 本地 SOCKS / HTTP 端口（默认 10808 / 10809）和 DNS（远程 DNS（走代理）/ 本机 DNS（直连））。
-- 练习初始状态：没有服务器、清除系统代理、规则分流、本机 DNS。
+- 练习初始状态：没有服务器、清除系统代理、直连、本机 DNS（默认值都不得分）。
 - 检测页（模拟）：出口 IP、与任务要求是否一致、DNS 泄露、WebRTC 泄露（只展示不计分），按当前配置推出来，同一配置结果一样。
 - 判分 100 = 节点参数正确 35（协议 5、地址 4、端口 4、用户ID/密码 8、额外ID/加密方式 2、传输协议 4、伪装域名/路径 4、TLS 4）+ 活动服务器选对 10 + 系统代理开启 15 + 路由模式正确 10 + DNS 走代理 10 + 真连接测试通过 10 + 检测页出口 IP 一致 10。交卷时按当前配置重测连接、重开检测页（只看最终结果，不考操作步骤）。同一原因连带扣的项，说明里写「原因同「…」」（和 §21 一致）。没有活动服务器时，系统代理 / 路由 / DNS 三项不给分，所以什么都不配直接交 = 0 分。
 - 扣分说明集中在 `V2_DEDUCT` 一张表；成绩单标「模拟判分」，附 grade.json（schema `v2ray-gui-sim/1`）；可重新练习，attempt 计数递增（A-V2R-0001…），历次成绩存本机。
@@ -254,3 +254,8 @@
 - 未做 / 简化：不连真实节点（第二步）；订阅菜单不可用；没有 TUN 模式、自定义路由规则、Mux、REALITY / XTLS flow、ss 插件；WebRTC 只展示不计分；本地端口只判是否冲突 / 越界；「复制链接」依赖浏览器剪贴板权限，被拒时提示手动复制。
 - 补丁 1（PM 2026-10-22）：成绩单「真连接测试通过」「检测页出口 IP 一致」两行各带「模拟」标签，grade.json 里这两项 `"simulated": true`（`check_page.exit_ip_simulated: true`）；检测页「出口 IP」一行也带「模拟」标签。扣分文案按 PM 定稿改了 15 条（每条后面加「怎么改」），单测逐字核对（`COPY_2026_10_22`）。截图 04 / 05 / 06 已更新。
 - 补丁 2（合规，项目负责人定）：路由模式改为中性名称「全局」「规则分流」「直连」（原第二项改名为「规则分流」，逻辑不变：题目要求「全局」或「规则分流」）；内部 key 也改为 `rule`，扣分码改为 `route_rule_need_global` / `route_global_need_rule`；检测页改名 check-a / check-b.lab.example。界面、扣分文案、字段表、截图里都不再出现原来的路由名称及相关地域字样，单测（引擎常量 + 所有输出）和 e2e（页面 HTML）都有断言。
+- 补丁 3（文案定稿 + 项目负责人定）：
+  - 路由 3 条扣分文案按文案同学定稿（route_direct / route_rule_need_global / route_global_need_rule）。
+  - 没走通代理封顶：真连接失败或检测页出口 IP 不一致（节点参数任一项错、没有活动服务器、系统代理清除 / 不改变、路由让检测页直连、本地端口冲突）时，整回合最高 `V2_FAIL_CAP` 分（`v2ray-engine.js`，暂定 59，可能改 50），判「不通过」；成绩单顶部显示 `cap_not_connected` 说明，grade.json 增加 `raw_total`（各项合计）、`connected`、`cap: {reason, text, value, applied}`、`passed`、`verdict`、`pass_line`。走通了代理但 DNS 泄露、或「规则分流」题选了「全局」，照常计分不封顶。白卷仍 0 分。
+  - 初始路由改为「直连」，默认值拿不到路由分。
+  - GitHub Pages 只发布网站文件：`.github/workflows/pages.yml` 本来就是 Actions 部署，改为先跑 `scripts/build-site.sh _site`（白名单 = index.html 引用的 js / css + index.html + .nojekyll），再盖版本号、上传 `_site`。tests/、*.md、shots/、scripts/、.github/ 不进产物，脚本自带检查，有内部文件直接失败。

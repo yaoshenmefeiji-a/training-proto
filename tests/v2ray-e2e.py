@@ -48,6 +48,7 @@ with sync_playwright() as pw:
     # 2 空客户端
     pg.click('#v2entry a.q'); pg.wait_for_timeout(300); seed(100036)
     check('空客户端：服务器列表为空',pg.locator('.v2empty').count()==1)
+    check('初始路由是「直连」',pg.eval_on_selector('.v2status label:has-text("路由") select','e=>e.options[e.selectedIndex].textContent')=='直连')
     no_banned('空客户端 + 任务（要求全局）')
     check('状态栏路由只有 全局 / 规则分流 / 直连',pg.eval_on_selector_all('.v2status label:has-text("路由") option','els=>els.map(e=>e.textContent)')==['全局','规则分流','直连'])
     menu('设置','路由设置'); no_banned('路由设置弹窗'); pg.click('.v2btns .v2b:has-text("取消")')
@@ -66,6 +67,7 @@ with sync_playwright() as pw:
     check('检测页出口 IP 行有「模拟」标签（且只有这一行）',pg.locator('#v2chk [data-check=exit_ip] .v2sim:text-is("模拟")').count()==1 and pg.locator('#v2chk .v2sim').count()==1)
     pg.click('button:has-text("✓ 提交")'); pg.wait_for_timeout(300)
     g=json.loads(pg.locator('#v2json').inner_text()); check('手动填写的标准配置 = 100（S-201）',g['total']==100,g['total'])
+    check('满分：判「通过」，没有封顶说明，grade.json cap 为 null',pg.locator('#v2verdict').inner_text()=='通过' and pg.locator('#v2cap').count()==0 and g['cap'] is None and g['passed'] is True)
     check('成绩单标「模拟判分」',pg.locator('#v2grade .tag:has-text("模拟判分")').count()==1 and g['grading']=='模拟判分')
     sh=pg.evaluate('''()=>{const s=JSON.parse(localStorage.tp_v2),n=V2E.genNode(s.seed);return [1,2,3].map(()=>JSON.stringify(V2E.grade(s.cfg,n)))}''')
     check('浏览器里同一配置判 3 次一致',len(set(sh))==1)
@@ -86,13 +88,15 @@ with sync_playwright() as pw:
     pg.locator('#v2chk').scroll_into_view_if_needed(); shot(pg,'04-check-page-mismatch.png','#v2chk')
     pg.click('button:has-text("✓ 提交")'); pg.wait_for_timeout(300); g=json.loads(pg.locator('#v2json').inner_text())
     it={i['key']:i for i in g['items']}
-    check('有扣分的成绩单：UUID 第 3 段 / 系统代理 / DNS 各扣在对的项',g['total']==47 and it['sysproxy']['score']==0 and it['dns']['score']==0 and any('UUID 第 3 段填错' in (f['cause'] or '') for f in it['node']['evidence']['fields']),g['total'])
+    check('有扣分的成绩单：UUID 第 3 段 / 系统代理 / 路由（初始直连）/ DNS 各扣在对的项',g['total']==37 and it['sysproxy']['score']==0 and it['dns']['score']==0 and it['routing']['score']==0 and it['routing']['deductions'][0]['code']=='route_direct' and any('UUID 第 3 段填错' in (f['cause'] or '') for f in it['node']['evidence']['fields']),g['total'])
+    cap_txt='浏览器没有走通代理，整回合最高 59 分，判不通过。先按上面的扣分原因把连接改通。'
+    check('没走通代理：成绩单显示「不通过」+ 封顶说明，grade.json 有 cap',pg.locator('#v2verdict').inner_text()=='不通过' and cap_txt in pg.locator('#v2cap').inner_text() and g['cap']['value']==59 and g['cap']['reason']=='cap_not_connected' and g['verdict']=='不通过' and g['passed'] is False, g.get('cap'))
     sim_tags_ok('有扣分')
     no_banned('有扣分成绩单（要求规则分流）')
     shot(pg,'06-grade-with-deductions.png','#v2grade')
     # 5 什么都不配直接交
     pg.click('#v2grade button:has-text("重新练习")'); pg.wait_for_timeout(200); pg.click('button:has-text("✓ 提交")'); pg.wait_for_timeout(300)
-    g=json.loads(pg.locator('#v2json').inner_text()); check('什么都不配直接交：0 分，不报错（S-203）',g['total']==0 and not errs, errs)
+    g=json.loads(pg.locator('#v2json').inner_text()); check('什么都不配直接交：0 分、不通过，不报错（S-203）',g['total']==0 and g['verdict']=='不通过' and g['cap']['applied'] is False and not errs, errs)
     no_banned('白卷成绩单')
     shot(pg,'08-grade-blank-zero.png','#v2grade')
     # 6 用分享链接导入（Shadowsocks）→ 满分
